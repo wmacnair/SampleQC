@@ -24,6 +24,7 @@ make_qc_dt <- function(x, qc_names) {
 #' @param df data.frame object containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @importFrom assertthat assert_that
+#' @importFrom data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
 make_qc_dt.data.frame <- function(df, qc_names) {
@@ -98,6 +99,7 @@ make_qc_dt.data.frame <- function(df, qc_names) {
 #' @importFrom data.table data.table
 #' @importFrom data.table ":="
 #' @importFrom data.table as.data.table
+#' @importFrom data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
 make_qc_dt.SingleCellExperiment <- function(sce, qc_names) {
