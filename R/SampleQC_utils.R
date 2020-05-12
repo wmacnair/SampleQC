@@ -208,7 +208,7 @@ make_qc_dt.SingleCellExperiment <- function(sce, qc_names) {
     # add annotations relating to mitochondrial proportions
     if ('log_counts' %in% names(qc_dt) ) {
         # add median log counts per sample
-        qc_dt[, med_counts  := median(plogis(log_counts)), by='sample_id']
+        qc_dt[, med_counts  := median(log_counts), by='sample_id']
 
         # put mito level into categories
         counts_cuts = c(1,100,300,1000,3000,10000,30000)
