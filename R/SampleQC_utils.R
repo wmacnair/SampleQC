@@ -249,6 +249,8 @@ make_qc_dt.SingleCellExperiment <- function(sce, qc_names) {
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom rmarkdown render
+#' @import BiocStyle
+#' @import patchwork
 #'
 #' @return NULL
 #' @export
