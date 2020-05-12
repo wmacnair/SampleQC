@@ -142,5 +142,5 @@ Will
 
 ## System requirements
 
-`SampleQC` requires R (>= 3.6.1), and yes I know I should update to `R 4.0.0` but I haven't done it yet...
+`SampleQC` requires `R >= 4.0.0` (although it may not make much difference if you use `R 3.6.1`.
 
