@@ -314,7 +314,7 @@ plot_embeddings <- function(mmd_list, var_type, sel_embed) {
     dt  = embed_dt[ embedding==sel_embed ]
     if (var_type=='discrete') {
         n_cols      = length(unique(dt[[v]]))
-        if (v %in% c('mito_cat', 'N_cat')) {
+        if (v %in% c('mito_cat', 'N_cat', 'counts_cat')) {
             col_vals    = rev(brewer.pal(n_cols, 'PiYG'))
         } else {
             col_vals    = .CLUSTER_COLS
