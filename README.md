@@ -23,6 +23,7 @@ install.packages("devtools")
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("SingleCellExperiment")
+BiocManager::install("BiocStyle")
 install.packages("data.table")
 
 # install this repo
@@ -30,7 +31,6 @@ devtools::install_github('wmacnair/SampleQC', auth_token='5800e0926a5fa148d3f712
 
 # set up libraries
 library('SampleQC')
-library('data.table')
 ```
 
 This should load all of the code.
