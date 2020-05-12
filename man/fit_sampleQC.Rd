@@ -58,4 +58,3 @@ Fits \code{SampleQC} model to one cluster of samples
 \link{What difference do mcd parameters make?}
 }
 
-\keyword{internal}

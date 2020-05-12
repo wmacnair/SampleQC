@@ -30,7 +30,7 @@
 #' @importFrom data.table setkey
 #'
 #' @return list, containing MMD values and sample clusters based on MMD values
-#' @keywords internal
+#' @export
 fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_list, n_cores, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method='robust') {
     if (missing(n_cores))
         n_cores     = length(K_list)

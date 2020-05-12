@@ -28,8 +28,9 @@ install.packages("data.table")
 # install this repo
 devtools::install_github('wmacnair/SampleQC', auth_token='5800e0926a5fa148d3f712d100cc71f6b1e71ea9')
 
-# set up library
+# set up libraries
 library('SampleQC')
+library('data.table')
 ```
 
 This should load all of the code.
