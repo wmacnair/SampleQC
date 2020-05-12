@@ -5,8 +5,13 @@
 \title{Calculates non-linear embeddings of MMD distances calculated by
 calculate_sample_to_sample_MMDs}
 \usage{
-embed_sample_to_sample_MMDs(mmd_list, qc_dt, annot_discrete = NULL,
-  annot_cont = NULL, n_nhbrs = 5)
+embed_sample_to_sample_MMDs(
+  mmd_list,
+  qc_dt,
+  annot_discrete = NULL,
+  annot_cont = NULL,
+  n_nhbrs = 5
+)
 }
 \arguments{
 \item{mmd_list}{Outputs from function calculate_sample_to_sample_MMDs}
@@ -26,3 +31,9 @@ data.table containing selected 2D embedding, plus annotations per sample
 Calculates non-linear embeddings of MMD distances calculated by
 calculate_sample_to_sample_MMDs
 }
+\section{Details}{
+
+\link{Maximum mean discrepancy (MMD) }
+\link{Why to centre and not scale}
+}
+

@@ -3,7 +3,6 @@
 \docType{package}
 \name{SampleQC}
 \alias{SampleQC}
-\alias{SampleQC-package}
 \title{SampleQC: robust multivariate, multi-celltype, multi-sample quality control for single cell RNA-seq}
 \description{
 \link{add description}

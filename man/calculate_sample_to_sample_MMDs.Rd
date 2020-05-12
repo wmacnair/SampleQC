@@ -4,9 +4,16 @@
 \alias{calculate_sample_to_sample_MMDs}
 \title{Calculates MMD distances between all samples in qc_dt object}
 \usage{
-calculate_sample_to_sample_MMDs(qc_dt, qc_names, sigma, n_cores = 16,
-  subsample = 1000, n_times = 10, centre_samples = TRUE,
-  scale_samples = FALSE)
+calculate_sample_to_sample_MMDs(
+  qc_dt,
+  qc_names,
+  sigma,
+  n_cores = 16,
+  subsample = 1000,
+  n_times = 10,
+  centre_samples = TRUE,
+  scale_samples = FALSE
+)
 }
 \arguments{
 \item{qc_dt}{Data.table of QC metrics for all cells and samples}
@@ -29,3 +36,9 @@ list, containing MMD values and sample clusters based on MMD values
 \description{
 Calculates MMD distances between all samples in qc_dt object
 }
+\section{Details}{
+
+\link{Maximum mean discrepancy (MMD) }
+\link{Why to centre and not scale}
+}
+

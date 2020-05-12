@@ -4,9 +4,16 @@
 \alias{.fit_one_sampleQC}
 \title{Fits \code{SampleQC} model to one cluster of samples}
 \usage{
-.fit_one_sampleQC(qc_dt, qc_names, K = 1, alpha = 0.01,
-  em_iters = 50, mcd_alpha = 0.5, mcd_iters = 50,
-  method = "robust")
+.fit_one_sampleQC(
+  qc_dt,
+  qc_names,
+  K = 1,
+  alpha = 0.01,
+  em_iters = 50,
+  mcd_alpha = 0.5,
+  mcd_iters = 50,
+  method = "robust"
+)
 }
 \arguments{
 \item{qc_dt}{Data.table of QC metrics for all cells and samples}
@@ -30,7 +37,7 @@ list, containing lots of cell outlier information
 Fits \code{SampleQC} model to one cluster of samples
 }
 \section{Details}{
-NA
+
 }
 
 \keyword{internal}

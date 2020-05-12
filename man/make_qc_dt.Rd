@@ -13,6 +13,9 @@ make_qc_dt(x, qc_names)
 
 \item{qc_names}{list of qc_names that need to be extracted}
 }
+\value{
+qc_dt, a data.table containing the sample variable plus qc metrics
+}
 \description{
 WARNING: This bit of code definitely needs more testing / thought / improvements... Please let me know if it falls over!
 }

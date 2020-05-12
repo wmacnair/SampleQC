@@ -4,8 +4,13 @@
 \alias{plot_fit_over_biaxials_one_sample}
 \title{Plots inferred sample-level statistics over QC biaxials}
 \usage{
-plot_fit_over_biaxials_one_sample(fit_obj, qc_dt, sel_sample, qc_names,
-  alpha_cut = 0.01)
+plot_fit_over_biaxials_one_sample(
+  fit_obj,
+  qc_dt,
+  sel_sample,
+  qc_names,
+  alpha_cut = 0.01
+)
 }
 \arguments{
 \item{fit_obj}{fit_obj object from function fit_qc_model}

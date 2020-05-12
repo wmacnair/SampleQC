@@ -13,7 +13,8 @@
 #' WARNING: This bit of code definitely needs more testing / thought / improvements... Please let me know if it falls over!
 #' @param x either SCE, or data.frame object containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
-#'
+#' @return qc_dt, a data.table containing the sample variable plus qc metrics
+#' @export
 make_qc_dt <- function(x, qc_names) {
     UseMethod("make_qc_dt")
 }

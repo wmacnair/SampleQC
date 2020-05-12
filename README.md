@@ -18,7 +18,17 @@ Our method `SampleQC` addresses these problems by fitting a flexible Gaussian mi
 
 To use this development version of the package, run the following lines in R:
 ```R
-devtools::install_github('wmacnair/SampleQC')
+# preliminaries
+install.packages("devtools")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("SingleCellExperiment")
+install.packages("data.table")
+
+# install this repo
+devtools::install_github('wmacnair/SampleQC', auth_token='5800e0926a5fa148d3f712d100cc71f6b1e71ea9')
+
+# set up library
 library('SampleQC')
 ```
 

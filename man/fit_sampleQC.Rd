@@ -10,9 +10,18 @@ in SampleQC_samples. Includes plots of outputs, and plots of fitted
 statistics
 Fits \code{SampleQC} model to one cluster of samples}
 \usage{
-fit_sampleQC(mmd_list, qc_dt, qc_names, K_list, n_cores, alpha = 0.01,
-  em_iters = 50, mcd_alpha = 0.5, mcd_iters = 50,
-  method = "robust")
+fit_sampleQC(
+  mmd_list,
+  qc_dt,
+  qc_names,
+  K_list,
+  n_cores,
+  alpha = 0.01,
+  em_iters = 50,
+  mcd_alpha = 0.5,
+  mcd_iters = 50,
+  method = "robust"
+)
 }
 \arguments{
 \item{mmd_list}{Outputs from calculate_sample_to_sample_MMDs}
@@ -43,4 +52,10 @@ in SampleQC_samples. Includes plots of outputs, and plots of fitted
 statistics
 Fits \code{SampleQC} model to one cluster of samples
 }
+\section{Details}{
+
+\link{How to define K}
+\link{What difference do mcd parameters make?}
+}
+
 \keyword{internal}

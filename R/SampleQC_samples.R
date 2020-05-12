@@ -54,7 +54,7 @@
 #' @param n_times How many times do we sample MMD between each pair of samples? (if subsampled, MMD is a stochastic value)
 #' @param centre_samples,scale_samples Should we centre or scale the values within each sample before calculating MMD?
 #' 
-#' @section Details
+#' @section Details:
 #' [Maximum mean discrepancy (MMD) ]
 #' [Why to centre and not scale]
 #' 
@@ -165,7 +165,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names, sigma, n_cores=16, 
 #' @param annot_cont List of continuous-valued variables to include for plotting
 #' @param n_nhbrs How many neighbours in nearest neighbours graph used as UMAP input
 #' 
-#' @section Details
+#' @section Details:
 #' [Maximum mean discrepancy (MMD) ]
 #' [Why to centre and not scale]
 #' 
@@ -355,7 +355,7 @@ plot_embeddings <- function(mmd_list, var_type, sel_embed) {
 #' @param annot_cont List of continuous-valued variables to include for plotting
 #' @param n_nhbrs How many neighbours in nearest neighbours graph used as UMAP input
 #' 
-#' @section Details
+#' @section Details:
 #' [Maximum mean discrepancy (MMD) ]
 #' [Why to centre and not scale]
 #' 

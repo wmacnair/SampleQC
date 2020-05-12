@@ -18,7 +18,7 @@
 #' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype means and covariances
 #' @param method Which of various implemented options should be used?
 #' 
-#' @section Details
+#' @section Details:
 #' [How to define K]
 #' [What difference do mcd parameters make?]
 #' 
@@ -68,7 +68,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_list, n_cores, alpha=0.01,
 #' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype means and covariances
 #' @param method Which of various implemented options should be used?
 #' 
-#' @section Details
+#' @section Details:
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"

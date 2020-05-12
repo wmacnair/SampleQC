@@ -4,8 +4,7 @@
 \alias{.calc_ellipses_dt}
 \title{Calculates path for an ellipse based on 2D mu and sigma values}
 \usage{
-.calc_ellipses_dt(fit_obj, sel_sample, dim1, dim2, dim2_name,
-  alpha = 0.01)
+.calc_ellipses_dt(fit_obj, sel_sample, dim1, dim2, dim2_name, alpha = 0.01)
 }
 \arguments{
 \item{fit_obj}{fit_obj object from function fit_qc_model}

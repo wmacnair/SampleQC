@@ -25,3 +25,9 @@ ggplot object
 Calculates non-linear embeddings of MMD distances calculated by
 calculate_sample_to_sample_MMDs
 }
+\section{Details}{
+
+\link{Maximum mean discrepancy (MMD) }
+\link{Why to centre and not scale}
+}
+
