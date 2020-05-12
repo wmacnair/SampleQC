@@ -1,0 +1,15 @@
+base
+methods
+workflowr
+BiocManager
+colorout
+datasets
+utils
+grDevices
+graphics
+stats
+BiocStyle
+data.table
+magrittr
+SampleQC
+microbenchmark
