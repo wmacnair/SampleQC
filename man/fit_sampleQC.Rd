@@ -14,7 +14,8 @@ fit_sampleQC(
   mmd_list,
   qc_dt,
   qc_names,
-  K_list,
+  K_all = NULL,
+  K_list = NULL,
   n_cores,
   alpha = 0.01,
   em_iters = 50,
@@ -28,15 +29,22 @@ fit_sampleQC(
 
 \item{qc_dt}{Data.table of QC metrics for all cells and samples}
 
-\item{qc_names}{List of metrics to actually use for calculating sample-to-sample distances}
+\item{qc_names}{List of metrics to actually use for calculating sample-to-
+sample distances}
 
-\item{K_list}{How many QC celltypes are there for each cluster of samples?}
+\item{K_all, K_list}{How many QC celltypes do we expect? Exactly one of K_all
+and K_list should be specified. If the user wants to fit the same model to
+all samples they should specify \code{K_all} as an integer. If the user wants to
+fit a different model to each of the sample groups identified by
+\code{calculate_sample_to_sample_MMDs}, they should specify \code{K_list} as an integer
+vector with the same number of entries as sample groups. See @Details.}
 
 \item{alpha}{Chi squared threshold to define outliers}
 
 \item{em_iters}{Maximum number of EM iterations}
 
-\item{mcd_alpha, mcd_iters}{Parameters for robust estimation of celltype means and covariances}
+\item{mcd_alpha, mcd_iters}{Parameters for robust estimation of celltype
+means and covariances}
 
 \item{method}{Which of various implemented options should be used?}
 }
@@ -55,6 +63,8 @@ Fits \code{SampleQC} model to one cluster of samples
 \section{Details}{
 
 \link{How to define K}
+\link[=Start with `K_all=1`]{Start with \code{K_all=1}}
+\link{Add more details of K_all vs K_list?}
 \link{What difference do mcd parameters make?}
 }
 

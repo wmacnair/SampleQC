@@ -1,4 +1,5 @@
-context("Sample-level functions")
+context("2: Sample-level functions")
+# devtools::document(pkg_dir); devtools::test(pkg_dir)
 
 ################
 # set up
@@ -48,4 +49,3 @@ test_that("automatic handling of annot_discrete, annot_continuous", {
     expect_equal(mmd_list$annot_discrete, c('annot_1', 'QC_clust', 'N_cat', 'mito_cat', 'counts_cat'))
     expect_equal(mmd_list$annot_cont, c('log_N', 'med_mito', 'med_counts'))
 })
-

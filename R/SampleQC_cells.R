@@ -11,15 +11,24 @@
 #' 
 #' @param mmd_list Outputs from calculate_sample_to_sample_MMDs
 #' @param qc_dt Data.table of QC metrics for all cells and samples
-#' @param qc_names List of metrics to actually use for calculating sample-to-sample distances
-#' @param K_list How many QC celltypes are there for each cluster of samples?
+#' @param qc_names List of metrics to actually use for calculating sample-to-
+#' sample distances
+#' @param K_all,K_list How many QC celltypes do we expect? Exactly one of K_all 
+#' and K_list should be specified. If the user wants to fit the same model to 
+#' all samples they should specify `K_all` as an integer. If the user wants to 
+#' fit a different model to each of the sample groups identified by 
+#' `calculate_sample_to_sample_MMDs`, they should specify `K_list` as an integer 
+#' vector with the same number of entries as sample groups. See @Details.
 #' @param alpha Chi squared threshold to define outliers
 #' @param em_iters Maximum number of EM iterations
-#' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype means and covariances
+#' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype 
+#' means and covariances
 #' @param method Which of various implemented options should be used?
 #' 
 #' @section Details:
 #' [How to define K]
+#' [Start with `K_all=1`]
+#' [Add more details of K_all vs K_list?]
 #' [What difference do mcd parameters make?]
 #' 
 #' @importFrom assertthat assert_that
@@ -28,21 +37,56 @@
 #' @importFrom magrittr set_colnames
 #' @importFrom mclust mclustBIC
 #' @importFrom data.table setkey
+#' @importFrom data.table copy
+#' @importFrom data.table ":="
 #'
 #' @return list, containing MMD values and sample clusters based on MMD values
 #' @export
-fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_list, n_cores, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method='robust') {
-    if (missing(n_cores))
-        n_cores     = length(K_list)
+fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_all=NULL, K_list=NULL, n_cores, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method='robust') {
+    # check specification of type of run is ok
+    if (!is.null(K_all) & !is.null(K_list))
+        stop('only one of `K_all` and `K_list` should be specified at one time; see ?fit_sampleQC')
+    list_flag   = !is.null(K_list)
+
+    # check specification of number of components is ok for both options
+    if (list_flag) {
+        N_clusts    = length(unique(mmd_list$mmd_clusts))
+        assert_that(
+            all.equal(K_list, as.integer(K_list)), 
+            all(K_list > 0),
+            msg     = 'K_list must be a vector of integers greater than 0')
+        assert_that(
+            length(K_list)==N_clusts, 
+            msg     = 'K_list must have the same length as the number of clusters in the mmd_clusts element of mmd_list')
+    } else {
+        assert_that(
+            K_all==as.integer(K_all), 
+            K_all>0, 
+            msg     = 'K_all must be an integer greater than 0')
+    }
+    # check inputs
     if (missing(qc_names))
         qc_names    = c('log_counts', 'log_feats', 'logit_mito')
+    if (list_flag) {
+        if (missing(n_cores))
+            n_cores     = length(K_list)        
+    } else {
+        n_cores     = 1
+    }
 
-    # add clusters to qc_dt
-    clusts_dt   = data.table(sample_id=rownames(mmd_list$mmd_mat), QC_clust=paste0('QC',mmd_list$mmd_clusts))
-    qc_all      = data.table:::merge.data.table(clusts_dt, qc_dt, by='sample_id')
+    if (list_flag) {
+        # add clusters to qc_dt
+        clusts_dt   = data.table(sample_id=rownames(mmd_list$mmd_mat), QC_clust=paste0('QC',mmd_list$mmd_clusts))
+        qc_all      = data.table:::merge.data.table(clusts_dt, qc_dt, by='sample_id')
 
-    # split data
-    qc_dt_list  = split(qc_all, qc_all$QC_clust)
+        # split data
+        qc_dt_list  = split(qc_all, qc_all$QC_clust)
+    } else {
+        # don't split, but put into one list
+        qc_all      = copy(qc_dt) %>% .[, QC_clust := 'All' ]
+        qc_dt_list  = list(All=qc_all)
+        K_list      = K_all
+    }
 
     # fit each one on different core
     em_all      = mclapply(1:length(qc_dt_list), 
@@ -52,8 +96,6 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_list, n_cores, alpha=0.01,
     #     function(i) .fit_one_sampleQC(qc_dt_list[[i]], qc_names, K_list[[i]], alpha, em_iters, mcd_alpha, mcd_iters, method))
 
     names(em_all)   = names(qc_dt_list)
-    
-    # join back together somehow?
     
     return(em_all)
 }

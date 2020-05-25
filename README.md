@@ -96,11 +96,20 @@ mmd_list    = embed_sample_to_sample_MMDs(mmd_list, qc_dt, annot_discrete, annot
 print(table(mmd_list$mmd_clusts))
 ```
 
-Next we fit a Gaussian mixture model to each of the sample groupings that we found. The user needs to specify how many clusters to fit in each group of samples. The quickest way to do this is to start with `K=1` for each cluster, plot the results, and then inspect the outputs to find which value is best for each cluster. Fitting to real data can be difficult; you may to try multiple different values of K, and maybe also tweak some parameters.
+Next we fit Gaussian mixture models, either one to each of the sample groupings that we found, or to the whole dataset. The user needs to specify how many clusters to fit in each group of samples. The quickest way to do this is to start with `K=1` for each cluster, plot the results, and then inspect the outputs to find which value is best for each cluster. Fitting to real data can be difficult; you may to try multiple different values of K, and maybe also tweak some parameters.
+
+To fit to each of the sample groupings individually, you use the parameter `K_list`.
 
 ```R
 em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_list=c(1,1,1,1))
 # em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_list=c(2,3,2,2))
+```
+
+To fit one model to the whole of the dataset, you use the parameter `K_all`. You might want to do this when you have relatively few samples (e.g. 30 or fewer) and / or when your samples have very similar distributions of QC metrics.
+
+```R
+em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_all=1)
+# em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_all=2)
 ```
 
 Once you've fit everything, you can render an html report and check whether it makes sense. 
