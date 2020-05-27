@@ -17,5 +17,6 @@ make_qc_dt(x, qc_names = c("log_counts", "log_feats", "logit_mito"))
 qc_dt, a data.table containing the sample variable plus qc metrics
 }
 \description{
-WARNING: This bit of code definitely needs more testing / thought / improvements... Please let me know if it falls over!
+WARNING: This bit of code definitely needs more testing / thought /
+improvements... Please let me know if it falls over!
 }

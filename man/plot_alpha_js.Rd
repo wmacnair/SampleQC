@@ -4,7 +4,7 @@
 \alias{plot_alpha_js}
 \title{Plots inferred sample-level statistics, with empirical log-likelihood}
 \usage{
-plot_alpha_js(fit_obj, df = 5, qc_idx, pc_idx)
+plot_alpha_js(fit_obj, df = 5, qc_idx = c(1, 2), pc_idx = c(1, 2))
 }
 \arguments{
 \item{fit_obj}{fit_obj object from function fit_qc_model}

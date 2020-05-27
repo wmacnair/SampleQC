@@ -1,4 +1,5 @@
-# SampleQC: robust multivariate, multi-celltype, multi-sample quality control for single cell RNA-seq
+# SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
+# for single cell RNA-seq
 # devtools::load_all('~/work/packages/BayesQC')
 # devtools::document('~/work/packages/BayesQC')
 
@@ -10,7 +11,8 @@
 #' SingleCellExperiment object, or copying them from a data.frame that the
 #' user has already made. Also does a little bit of checking of the inputs.
 #' 
-#' WARNING: This bit of code definitely needs more testing / thought / improvements... Please let me know if it falls over!
+#' WARNING: This bit of code definitely needs more testing / thought / 
+#' improvements... Please let me know if it falls over!
 #' @param x either SCE, or data.frame object containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
@@ -27,14 +29,15 @@ make_qc_dt <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
 #' @importFrom data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
-make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
+make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 
+    'logit_mito')) {
     # check that cell_id and sample_id are present
     df_names    = colnames(x)
     if ( !('cell_id' %in% df_names) )
         stop('cell_id must be column of data.frame')
     if ( !('sample_id' %in% df_names) )
         stop('sample_id must be column of data.frame')
-    if ( length(unique(x$cell_id))<nrow(x) )
+    if ( length(unique(x$cell_id)) < nrow(x) )
         stop('cell_id values must be unique')
 
     # put into data.table
@@ -44,15 +47,24 @@ make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 'logi
     non_mito_names  = setdiff(qc_names, c('logit_mito', 'mito_prop'))
     missed_ns       = setdiff(non_mito_names, df_names)
     if (length(missed_ns) > 0)
-        stop('the following qc metrics are missing from the input data.frame\n:', paste(missed_ns, collapse=', '))
+        stop('the following qc metrics are missing from the input data.frame
+            \n:', paste(missed_ns, collapse=', '))
 
     if ( ( ('logit_mito' %in% qc_names) & !('logit_mito' %in% df_names) ) & 
         ( !('mito_prop' %in% df_names) | !('log_counts' %in% df_names) )
         )
-        stop("'logit_mito' found in qc_names but neither 'mito_prop' or 'logit_mito' is present in the input data.frame")
+        stop("'logit_mito' found in qc_names but neither 'mito_prop' or 
+            'logit_mito' is present in the input data.frame")
 
-    if (!('log_counts' %in% qc_names))
-        warning("'log_counts' is not present as a column - are you sure you want to do QC without log_counts?")
+    if ('log_counts' %in% qc_names) {
+        assert_that(
+            all(qc_dt$log_counts >= 0), 
+            msg='All log_counts values should be >= 0.'
+            )
+    } else {
+        warning("'log_counts' is not present as a column - are you sure you 
+            want to do QC without log_counts?")        
+    }
 
     # add logit_mito if necessary
     if ( ('logit_mito' %in% qc_names) & !('logit_mito' %in% df_names) ) {
@@ -63,7 +75,8 @@ make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 'logi
         mito_props          = qc_dt$mito_prop
         assert_that(all(mito_props >= 0) & all(mito_props <= 1))
         total_counts        = 10^qc_dt$log_counts
-        qc_dt$logit_mito    = qlogis( (total_counts*mito_props +1) / (total_counts+2) )
+        qc_dt$logit_mito    = qlogis( (total_counts*mito_props +1) / 
+            (total_counts+2) )
     }
 
     # check logit_mito values
@@ -83,44 +96,49 @@ make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 'logi
 
 #' Checks that input is ok, puts it into expected format
 #'
-#' @param x SingleCellExperiment or data.frame (or data.table, some other class inheriting data.frame) containing calculated QC metrics
+#' @param x SingleCellExperiment or data.frame (or data.table, some other class
+#' inheriting data.frame) containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
 #' @importFrom SingleCellExperiment counts
-#' @importFrom SummarizedExperiment colData
-#' @importFrom SummarizedExperiment rowData
+#' @importFrom SummarizedExperiment colData rowData
 #' @importFrom Matrix colSums
 #' @importFrom stringr str_detect
 #' @importFrom data.table data.table
-#' @importFrom data.table ":="
-#' @importFrom data.table as.data.table
-#' @importFrom data.table setcolorder
+#' @importFrom data.table ":=" as.data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
-make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
+make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 
+    'log_feats', 'logit_mito')) {
     # some checks before starting
-    assert_that( 'SingleCellExperiment' %in% class(x) )
+    assert_that( is(x, "SingleCellExperiment") )
     assert_that( !is.null(colnames(x)) )
     assert_that( !is.null(x$sample_id) )
-    assert_that( length(unique(colnames(x)))==ncol(x) )
+    assert_that( length(unique(colnames(x))) == ncol(x) )
 
     # remove proteins if necessary
     type_col        = rowData(x)$Type
     if (!is.null(type_col)) {
-        warning("column 'Type' found in `rowData`; assuming that this is a multi-modal dataset and restricting to rows labelled as 'Gene Expression'")
-        warning("to avoid this message, or if this is not what you want to do, please make a copy of your sce with only the rows you are interested in, and no 'Type' column in `rowData`")
-        x         = x[ type_col=='Gene Expression', ]
+        warning("column 'Type' found in `rowData`; assuming that this is a 
+            multi-modal dataset and restricting to rows labelled as 'Gene 
+            Expression'")
+        warning("to avoid this message, or if this is not what you want to do,
+            please make a copy of your sce with only the rows you are 
+            interested in, and no 'Type' column in `rowData`")
+        x         = x[ type_col == 'Gene Expression', ]
     }
 
     # warning
     if (!('log_counts' %in% qc_names))
-        warning("'log_counts' is not specified as in qc_names - are you sure you want to do QC without log_counts?")
+        warning("'log_counts' is not specified as in qc_names - are you sure 
+            you want to do QC without log_counts?")
 
     # restrict to cells >= 1 count
     total_counts    = Matrix::colSums(counts(x))
-    if (any(total_counts==0))
-        stop("at least some cells have 0 reads; please remove these before running `make_qc_dt`")
+    if (any(total_counts == 0))
+        stop("at least some cells have 0 reads; please remove these before 
+            running `make_qc_dt`")
 
     # define output dt
     qc_dt = data.table(
@@ -137,11 +155,11 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_fea
     }
     if ('logit_mito' %in% qc_names) {
         # prepare to calc stats
-        idx_mt          = rownames(x) %>% str_detect('^mt-')
-        if (sum(idx_mt)==0)
-            idx_mt          = rownames(x) %>% str_detect('^Mt-')
-        if (sum(idx_mt)<13)
-            warning('found ', sum(idx_mt), ' mitochondrial genes, which is less than the expected 13 human genes; you may want to check your data')
+        idx_mt          = grepl("^mt-", rownames(x), ignore.case = TRUE)
+        if (sum(idx_mt) < 13)
+            warning('found ', sum(idx_mt), ' mitochondrial genes, which is less
+             than the expected 13 human genes; you may want to check your 
+             data')
 
         # calculate stats by hand
         non_mt_counts   = x[ !idx_mt, ] %>% counts %>% Matrix::colSums(.)
@@ -177,9 +195,9 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_fea
 
     # check specific names
     if ('log_counts' %in% col_names)
-        assert_that( all(qc_dt$log_counts>=0) )
+        assert_that( all(qc_dt$log_counts >= 0) )
     if ('log_feats' %in% col_names)
-        assert_that( all(qc_dt$log_feats>=0) )
+        assert_that( all(qc_dt$log_feats >= 0) )
     if ('logit_mito' %in% col_names)
         assert_that( all(is.finite(qc_dt$logit_mito)) )
 
@@ -191,7 +209,8 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_fea
 
 #' Checks that input is ok, puts it into expected format
 #'
-#' @param sce SingleCellExperiment or data.frame (or data.table, some other class inheriting data.frame) containing calculated QC metrics
+#' @param sce SingleCellExperiment or data.frame (or data.table, some other 
+#' class inheriting data.frame) containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @importFrom data.table ":="
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
@@ -205,7 +224,9 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_fea
         # put mito level into categories
         counts_cuts = c(1,100,300,1000,3000,10000,30000)
         counts_labs = paste0('<=', counts_cuts[-1])
-        qc_dt[, counts_cat  := factor(cut(10^med_counts, breaks=counts_cuts, labels=counts_labs), levels=counts_labs), by='sample_id']
+        qc_dt[, counts_cat  := factor(
+            cut(10^med_counts, breaks=counts_cuts, labels=counts_labs), 
+            levels=counts_labs), by='sample_id']
     }
 
     # add annotations relating to mitochondrial proportions
@@ -216,7 +237,9 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_fea
         # put mito level into categories
         mito_cuts   = c(0,0.01,0.05,0.1,0.2,0.5,1)
         mito_labs   = paste0('<=', mito_cuts[-1])
-        qc_dt[, mito_cat    := factor(cut(med_mito, breaks=mito_cuts, labels=mito_labs), levels=mito_labs), by='sample_id']
+        qc_dt[, mito_cat    := factor(
+            cut(med_mito, breaks=mito_cuts, labels=mito_labs), 
+            levels=mito_labs), by='sample_id']
     }
 
     # add annotations for sample size
@@ -225,7 +248,9 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_fea
     # and factor version
     N_cuts      = c(1,100,200,400,1000,2000,4000,10000,20000,40000)
     N_labs      = paste0('<=', N_cuts[-1])
-    qc_dt[, N_cat    := factor(cut(10^log_N, breaks=N_cuts, labels=N_labs), levels=rev(N_labs)), by=sample_id]
+    qc_dt[, N_cat    := factor(
+        cut(10^log_N, breaks=N_cuts, labels=N_labs), 
+        levels=rev(N_labs)), by=sample_id]
 
     return(qc_dt)
 }
@@ -256,7 +281,8 @@ make_SampleQC_report <- function(mmd_list, em_list, save_dir, proj_name) {
     report_file = paste0('SampleQC_report_', proj_name, '.html')
 
     # render
-    tmplt_file  = system.file("Rmd", "SampleQC_report_template.Rmd", package="SampleQC")
+    tmplt_file  = system.file("Rmd", "SampleQC_report_template.Rmd", 
+        package="SampleQC")
     message('rendering ')
     tryCatch({
         render(tmplt_file, output_file=report_file, output_dir=save_dir)

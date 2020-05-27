@@ -1,4 +1,5 @@
-# SampleQC: robust multivariate, multi-celltype, multi-sample quality control for single cell RNA-seq
+# SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
+# for single cell RNA-seq
 # devtools::load_all('~/work/packages/BayesQC')
 # devtools::document('~/work/packages/BayesQC')
 
@@ -29,7 +30,7 @@
 #' @keywords internal
 .dist_fn <- function(m_i, m_j, subsample, sigma) {
     # check matrices are the same size
-    assert_that( ncol(m_i)==ncol(m_j) )
+    assert_that( ncol(m_i) == ncol(m_j) )
 
     # get values for sample i, subsample if necessary
     n_i     = nrow(m_i)
@@ -47,12 +48,16 @@
 #' Calculates MMD distances between all samples in qc_dt object
 #' 
 #' @param qc_dt Data.table of QC metrics for all cells and samples
-#' @param qc_names List of metrics to actually use for calculating sample-to-sample distances
+#' @param qc_names List of metrics to actually use for calculating 
+#' sample-to-sample distances
 #' @param sigma Scale for MMD kernel (defaults to length of qc_names)
 #' @param n_cores How many cores to parallelize over
-#' @param subsample Should we downsample the number of cells per sample to this number
-#' @param n_times How many times do we sample MMD between each pair of samples? (if subsampled, MMD is a stochastic value)
-#' @param centre_samples,scale_samples Should we centre or scale the values within each sample before calculating MMD?
+#' @param subsample Should we downsample the number of cells per sample to 
+#' this number
+#' @param n_times How many times do we sample MMD between each pair of samples?
+#' (if subsampled, MMD is a stochastic value)
+#' @param centre_samples,scale_samples Should we centre or scale the values 
+#' within each sample before calculating MMD?
 #' 
 #' @section Details:
 #' [Maximum mean discrepancy (MMD) ]
@@ -61,19 +66,19 @@
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
 #' @importFrom parallel mclapply
-#' @importFrom data.table data.table
-#' @importFrom data.table dcast
-#' @importFrom igraph graph_from_edgelist
-#' @importFrom igraph graph_from_adjacency_matrix
+#' @importFrom data.table data.table dcast
+#' @importFrom igraph graph_from_edgelist graph_from_adjacency_matrix
 #' @importFrom igraph cluster_louvain
 #' @return list, containing MMD values and sample clusters based on MMD values
 #' @export
-calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log_feats', 'logit_mito'), sigma, n_cores=16, subsample=1000, n_times=10, centre_samples=TRUE, scale_samples=FALSE) {
+calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 
+    'log_feats', 'logit_mito'), sigma, n_cores=16, subsample=1000, n_times=10,
+    centre_samples=TRUE, scale_samples=FALSE) {
     # check some inputs
     if( missing(sigma) )
         sigma   = length(qc_names)
-    assert_that( length(sigma)==1 )
-    assert_that( sigma>0 )
+    assert_that( length(sigma) == 1 )
+    assert_that( sigma > 0 )
 
     # get list of samples to compare
     sample_list = sort(unique(qc_dt$sample_id))
@@ -85,23 +90,29 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
     # make list of individual matrices, scaled if necessary
     sample_ids  = qc_dt$sample_id
     mat_list    = lapply(sample_list, function(s) {
-        qc_mat  = qc_mat_all[ sample_ids==s, ]
-        qc_mat  = apply(qc_mat, 2, scale, center=centre_samples, scale=scale_samples)
+        qc_mat  = qc_mat_all[ sample_ids == s, ]
+        qc_mat  = apply(qc_mat, 2, scale, 
+            center=centre_samples, scale=scale_samples)
         return(qc_mat)
     }) %>% setNames(sample_list)
 
     # define combns to do
-    ij_grid     = expand.grid(sample_i=factor(sample_list), sample_j=factor(sample_list))
-    ij_grid     = ij_grid[ as.integer(ij_grid$sample_i) < as.integer(ij_grid$sample_j), ]
+    ij_grid     = expand.grid(
+        sample_i=factor(sample_list), 
+        sample_j=factor(sample_list)
+        )
+    ij_grid     = ij_grid[ as.integer(ij_grid$sample_i) < 
+        as.integer(ij_grid$sample_j), ]
 
     # iterate through them
     n_combns    = nrow(ij_grid)
-    message(sprintf('calculating %d sample-sample MMDs (. = 20, one row ~= 1000):', n_combns, n_combns/20))
+    message('calculating ', n_combns, 
+        ' sample-sample MMDs (. = 20, one row ~= 1000):')
     mmd_means   = mclapply(
-        1:n_combns, function(r) {
-            if( (r%%20)==0 )
+        seq_len(n_combns), function(r) {
+            if( (r%%20) == 0 )
                 message(".", appendLF=FALSE)
-            if( (r%%1000)==0 )
+            if( (r%%1000) == 0 )
                 message("\n", appendLF=FALSE)
             # prep
             sample_i    = as.character(ij_grid[r, 'sample_i'])
@@ -110,7 +121,10 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
             mat_j       = mat_list[[sample_j]]
 
             # calc MMD
-            mmd_vec     = sapply(1:n_times, function(dummy) return(.dist_fn(mat_i, mat_j, subsample, sigma)) )
+            mmd_vec     = vapply(
+                seq_len(n_times), 
+                function(z) return(.dist_fn(mat_i, mat_j, subsample, sigma)), 
+                numeric(1))
             return(mean(mmd_vec))
         }, mc.cores=n_cores)
     message("\n", appendLF=FALSE)
@@ -123,7 +137,9 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
         )
 
     # make matrix
-    mmd_mat     = dcast(mmd_dt, sample_i ~ sample_j, value.var='mmd_mean', fill=0) %>% 
+    mmd_mat     = dcast(
+        mmd_dt, sample_i ~ sample_j, 
+        value.var='mmd_mean', fill=0) %>% 
         .[, -'sample_i', with=FALSE] %>% 
         as.matrix %>%
         set_rownames(., colnames(.))
@@ -131,7 +147,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
     # turn into nearest neighbours graph
     message('   clustering samples using MMD values')
     n_nhbrs     = 5
-    edge_list   = lapply(1:nrow(mmd_mat), 
+    edge_list   = lapply(seq_len(nrow(mmd_mat)), 
         function(i) {
             row     = mmd_mat[i, ]
             nbrs    = order(row)[2:(n_nhbrs+1)]
@@ -150,7 +166,13 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
         mmd_dt      = mmd_dt,
         mmd_mat     = mmd_mat, 
         mmd_clusts  = mmd_clusts,
-        params      = list(sigma=sigma, subsample=subsample, n_times=n_times, centre_samples=centre_samples, scale_samples=scale_samples)
+        params      = list(
+            sigma           = sigma, 
+            subsample       = subsample, 
+            n_times         = n_times, 
+            centre_samples  = centre_samples, 
+            scale_samples   = scale_samples
+            )
         )
 
     return(mmd_list)
@@ -161,9 +183,9 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
 #' 
 #' @param mmd_list Outputs from function calculate_sample_to_sample_MMDs
 #' @param qc_dt Data.table of QC metrics for all cells and samples
-#' @param annot_discrete List of discrete-valued variables to include for plotting
-#' @param annot_cont List of continuous-valued variables to include for plotting
-#' @param n_nhbrs How many neighbours in nearest neighbours graph used as UMAP input
+#' @param annot_discrete List of discrete-valued variables to plot later
+#' @param annot_cont List of continuous-valued variables to plot later
+#' @param n_nhbrs How many neighbours for UMAP nearest neighbours graph
 #' 
 #' @section Details:
 #' [Maximum mean discrepancy (MMD) ]
@@ -173,15 +195,13 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log
 #' @importFrom uwot umap
 #' @importFrom scales rescale
 #' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table
-#' @importFrom data.table setnames
-#' @importFrom data.table ":="
+#' @importFrom data.table data.table setnames ":=" setorder
 #' @importFrom forcats fct_infreq
-#' @importFrom data.table setorder
 #'
 #' @return data.table containing selected 2D embedding, plus annotations per sample
 #' @export
-embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, annot_cont=NULL, n_nhbrs=5) {
+embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, 
+    annot_cont=NULL, n_nhbrs=5) {
     # unpack 
     assert_that( !is.null(mmd_list$mmd_mat) )
     assert_that( !is.null(mmd_list$mmd_clusts) )
@@ -196,8 +216,12 @@ embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, an
 
     # convert mmd mat to nearest neighbours
     nn_method   = list(
-        idx     = apply(mmd_mat, 1, function(row) order(row)[2:(n_nhbrs+1)]) %>% t,
-        dist    = apply(mmd_mat, 1, function(row) sort(row)[2:(n_nhbrs+1)]) %>% t
+        idx     = apply(
+            mmd_mat, 1, function(row) order(row)[2:(n_nhbrs+1)]
+            ) %>% t,
+        dist    = apply(
+            mmd_mat, 1, function(row) sort(row)[2:(n_nhbrs+1)]
+            ) %>% t
         )
     umap_mat    = umap(NULL, nn_method=nn_method, min_dist=0.001)
 
@@ -209,21 +233,23 @@ embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, an
     samples     = colnames(mmd_mat)
     n_samples   = length(samples)
     embed_dt    = data.table(rbind(mds_mat, umap_mat)) %>%
-        setnames(names(.), paste0('dim', 1:k)) %>%
+        setnames(names(.), paste0('dim', seq_len(k))) %>%
         .[, embedding := rep(c('MDS', 'UMAP'), each=n_samples)] %>%
         .[, sample_id := rep(samples, 2)] %>%
         .[, QC_clust := fct_infreq(factor(rep(mmd_clusts, 2)))]
-    levels(embed_dt$QC_clust)   = paste0('QC', 1:max(mmd_clusts))
+    levels(embed_dt$QC_clust)   = paste0('QC', seq_len(max(mmd_clusts)))
 
     # warn about missing annotations
     dt_names        = c(colnames(qc_dt), 'QC_clust')
     missing_disc    = setdiff(annot_discrete, dt_names)
-    if (length(missing_disc)>0)
-        warning("the following variables were requested as discrete annotations, but aren't present in qc_dt:\n", paste(missing_disc, collapse=', '))
+    if (length(missing_disc) > 0)
+        warning("These variables were requested as discrete annotations, but 
+            aren't present in qc_dt:\n", paste(missing_disc, collapse=', '))
 
     missing_cont    = setdiff(annot_cont, dt_names)
-    if (length(missing_cont)>0)
-        warning("the following variables were requested as continuous annotations, but aren't present in qc_dt:\n", paste(missing_cont, collapse=', '))
+    if (length(missing_cont) > 0)
+        warning("These variables were requested as continuous annotations, but 
+            aren't present in qc_dt:\n", paste(missing_cont, collapse=', '))
 
     # define automatic names
     auto_discrete   = c('QC_clust', 'N_cat', 'mito_cat', 'counts_cat')
@@ -236,9 +262,11 @@ embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, an
     annot_cont      = intersect(annot_cont, dt_names)
 
     # get annotations
-    annots_dt   = qc_dt[, c('sample_id', setdiff(annot_discrete, 'QC_clust'), annot_cont), with=FALSE] %>%
+    annots_dt   = qc_dt[, c('sample_id', setdiff(annot_discrete, 'QC_clust'), 
+        annot_cont), with=FALSE] %>%
         unique
-    embed_dt    = data.table:::merge.data.table(annots_dt, embed_dt, by='sample_id') %>%
+    embed_dt    = data.table:::merge.data.table(annots_dt, embed_dt, 
+        by='sample_id') %>%
         setorder('embedding', 'sample_id')
 
     # add this stuff to mmd_list
@@ -260,12 +288,13 @@ embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, an
 #' @importFrom assertthat assert_that
 #' @return NULL
 #' @export
-plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_embed=c('MDS', 'UMAP')) {
+plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), 
+    sel_embed=c('MDS', 'UMAP')) {
     # check inputs
     var_type    = match.arg(var_type)
     sel_embed   = match.arg(sel_embed)
 
-    if (var_type=='discrete') {
+    if (var_type == 'discrete') {
         annot_vars  = mmd_list$annot_discrete
     } else {
         annot_vars  = mmd_list$annot_cont
@@ -289,18 +318,10 @@ plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_
 #' @importFrom assertthat assert_that
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom scales pretty_breaks
-#' @importFrom ggplot2 ggplot
-#' @importFrom ggplot2 aes_string
-#' @importFrom ggplot2 geom_point
-#' @importFrom ggplot2 geom_text
-#' @importFrom ggplot2 scale_x_continuous
-#' @importFrom ggplot2 scale_y_continuous
-#' @importFrom ggplot2 scale_fill_brewer
-#' @importFrom ggplot2 scale_fill_distiller
-#' @importFrom ggplot2 scale_fill_manual
-#' @importFrom ggplot2 theme
-#' @importFrom ggplot2 theme_bw
-#' @importFrom ggplot2 labs
+#' @importFrom ggplot2 ggplot aes_string geom_point geom_text
+#' @importFrom ggplot2 scale_x_continuous scale_y_continuous scale_fill_brewer
+#' @importFrom ggplot2 scale_fill_distiller scale_fill_manual
+#' @importFrom ggplot2 theme theme_bw labs
 #'
 #' @return ggplot object
 #' @keywords internal
@@ -314,8 +335,8 @@ plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_
     assert_that( sel_embed %in% c('MDS', 'UMAP') )
 
     # restrict to chosen embedding
-    dt  = embed_dt[ embedding==sel_embed ]
-    if (var_type=='discrete') {
+    dt  = embed_dt[ embedding == sel_embed ]
+    if (var_type == 'discrete') {
         n_cols      = length(unique(dt[[v]]))
         if (v %in% c('mito_cat', 'N_cat', 'counts_cat')) {
             col_vals    = rev(brewer.pal(n_cols, 'PiYG'))
@@ -323,25 +344,36 @@ plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_
             col_vals    = .CLUSTER_COLS
         }
         g = ggplot(dt) + 
-            aes_string( x='dim1', y='dim2', label='sample_id', fill=paste0("factor(", v, ")")) + 
-            geom_text( hjust=0.5, vjust=1.5, colour='black', size=2, alpha=0.8 ) + 
+            aes_string(
+                x='dim1', y='dim2', 
+                label='sample_id', fill=paste0("factor(", v, ")")
+                ) + 
+            geom_text(
+                hjust=0.5, vjust=1.5, colour='black', 
+                size=2, alpha=0.8
+                ) + 
             geom_point( size=3, alpha=0.8, shape=21, colour='black' ) +
-            scale_x_continuous( breaks=pretty_breaks() ) + scale_y_continuous( breaks=pretty_breaks() )
+            scale_x_continuous( breaks=pretty_breaks() ) + 
+            scale_y_continuous( breaks=pretty_breaks() )
         if (n_cols > 2) {
-            g = g + scale_fill_manual( values=col_vals[1:n_cols] )
+            g = g + scale_fill_manual( values=col_vals[seq_len(n_cols)] )
         } else {
             g = g + scale_fill_brewer( palette='Set1' )
         }
         g = g + 
             theme_bw() + theme( aspect.ratio=1, axis.text=element_blank() ) + 
             labs( fill=v )
-    } else if (var_type=='continuous') {
+    } else if (var_type == 'continuous') {
         g = ggplot(dt) + 
             aes_string( x='dim1', y='dim2', label='sample_id', fill=v) + 
-            geom_text( hjust=0.5, vjust=1.5, colour='black', size=2, alpha=0.8 ) +
+            geom_text(
+                hjust=0.5, vjust=1.5, 
+                colour='black', size=2, alpha=0.8
+                ) +
             geom_point( size=3, alpha=0.8, shape=21, colour='black' ) +
             scale_fill_distiller( palette='RdBu', breaks=pretty_breaks() ) + 
-            scale_x_continuous( breaks=pretty_breaks() ) + scale_y_continuous( breaks=pretty_breaks() ) +
+            scale_x_continuous( breaks=pretty_breaks() ) + 
+            scale_y_continuous( breaks=pretty_breaks() ) +
             theme_bw() + theme( aspect.ratio=1, axis.text=element_blank() )
     }
     g = g + labs( x=paste0(sel_embed, '1'), y=paste0(sel_embed, '2') )
@@ -354,9 +386,9 @@ plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_
 #' 
 #' @param mmd_list Outputs from function calculate_sample_to_sample_MMDs
 #' @param qc_dt Data.table of QC metrics for all cells and samples
-#' @param annot_discrete List of discrete-valued variables to include for plotting
-#' @param annot_cont List of continuous-valued variables to include for plotting
-#' @param n_nhbrs How many neighbours in nearest neighbours graph used as UMAP input
+#' @param annot_discrete List of discrete-valued variables to plot later
+#' @param annot_cont List of continuous-valued variables to plot later
+#' @param n_nhbrs How many neighbours in UMAP nearest neighbours graph
 #' 
 #' @section Details:
 #' [Maximum mean discrepancy (MMD) ]
@@ -366,16 +398,9 @@ plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_
 #' @importFrom data.table copy
 #' @importFrom data.table ":="
 #' @importFrom scales pretty_breaks
-#' @importFrom ggplot2 ggplot
-#' @importFrom ggplot2 aes
-#' @importFrom ggplot2 geom_tile
-#' @importFrom ggplot2 scale_fill_distiller
-#' @importFrom ggplot2 expand_limits
-#' @importFrom ggplot2 theme_bw
-#' @importFrom ggplot2 theme
-#' @importFrom ggplot2 element_blank
-#' @importFrom ggplot2 element_text
-#' @importFrom ggplot2 labs
+#' @importFrom ggplot2 ggplot aes geom_tile
+#' @importFrom ggplot2 scale_fill_distiller expand_limits
+#' @importFrom ggplot2 theme_bw theme element_blank element_text labs
 #'
 #' @return ggplot object
 #' @export
@@ -400,7 +425,10 @@ plot_mmd_heatmap <- function(mmd_list) {
     g = ggplot(plot_dt) +
         aes( x=sample_i, y=sample_j, fill=mmd_mean ) +
         geom_tile() +
-        scale_fill_distiller( palette='PiYG', direction=-1, breaks=pretty_breaks() ) + 
+        scale_fill_distiller(
+            palette='PiYG', direction=-1, 
+            breaks=pretty_breaks()
+            ) + 
         expand_limits( fill=0 ) +
         theme_bw() + theme( 
             aspect.ratio    = 1,

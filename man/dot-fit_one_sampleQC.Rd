@@ -18,7 +18,8 @@
 \arguments{
 \item{qc_dt}{Data.table of QC metrics for all cells and samples}
 
-\item{qc_names}{List of metrics to actually use for calculating sample-to-sample distances}
+\item{qc_names}{List of metrics to actually use for calculating
+sample-to-sample distances}
 
 \item{K}{How many QC celltypes are there?}
 
@@ -26,7 +27,8 @@
 
 \item{em_iters}{Maximum number of EM iterations}
 
-\item{mcd_alpha, mcd_iters}{Parameters for robust estimation of celltype means and covariances}
+\item{mcd_alpha, mcd_iters}{Parameters for robust estimation of celltype
+means and covariances}
 
 \item{method}{Which of various implemented options should be used?}
 }

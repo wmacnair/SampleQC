@@ -36,8 +36,12 @@ sample distances}
 and K_list should be specified. If the user wants to fit the same model to
 all samples they should specify \code{K_all} as an integer. If the user wants to
 fit a different model to each of the sample groups identified by
-\code{calculate_sample_to_sample_MMDs}, they should specify \code{K_list} as an integer
-vector with the same number of entries as sample groups. See @Details.}
+\code{calculate_sample_to_sample_MMDs}, they should specify \code{K_list} as an
+integer vector with the same number of entries as sample groups. See Details.}
+
+\item{n_cores}{How many cores to use; n_cores=1 runs in serial. The default
+depends on whether K_all or K_list is used: if K_all is set, n_cores=1; if
+K_list is set, n_cores=length(K_list).}
 
 \item{alpha}{Chi squared threshold to define outliers}
 
@@ -62,9 +66,13 @@ Fits \code{SampleQC} model to one cluster of samples
 }
 \section{Details}{
 
+
 \link{How to define K}
+
 \link[=Start with `K_all=1`]{Start with \code{K_all=1}}
+
 \link{Add more details of K_all vs K_list?}
+
 \link{What difference do mcd parameters make?}
 }
 

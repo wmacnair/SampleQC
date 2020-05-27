@@ -18,11 +18,11 @@ embed_sample_to_sample_MMDs(
 
 \item{qc_dt}{Data.table of QC metrics for all cells and samples}
 
-\item{annot_discrete}{List of discrete-valued variables to include for plotting}
+\item{annot_discrete}{List of discrete-valued variables to plot later}
 
-\item{annot_cont}{List of continuous-valued variables to include for plotting}
+\item{annot_cont}{List of continuous-valued variables to plot later}
 
-\item{n_nhbrs}{How many neighbours in nearest neighbours graph used as UMAP input}
+\item{n_nhbrs}{How many neighbours for UMAP nearest neighbours graph}
 }
 \value{
 data.table containing selected 2D embedding, plus annotations per sample

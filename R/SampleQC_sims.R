@@ -6,24 +6,24 @@ generate_data_alpha_j_beta_k <- function(J, K, N, mu_0, alpha_j, beta_k, sigma_k
     if (missing(alpha_j))
         alpha_j = rnorm(J)
     if (missing(beta_k))
-        beta_k  = 1:K
+        beta_k  = seq_len(K)
     if (missing(sigma_k))
-        sigma_k = (1:K) / 10
+        sigma_k = (seq_len(K)) / 10
     beta_k      = beta_k - mean(beta_k)
 
     # sample J different groups
     j_weights   = exp(rnorm(J)/2)
     n_js        = as.vector(rmultinom(1, N, prob=j_weights))
-    j_vals      = 1:J
+    j_vals      = seq_len(J)
     groups      = rep(j_vals, times=n_js)
 
     # for each group, sample p_jk, z, x
     p_jk        = matrix(NA, J, K)
     z           = matrix(NA, N, 1)
-    k_vals      = 1:K
-    for (j in 1:J) {
+    k_vals      = seq_len(K)
+    for (j in seq_len(J)) {
         # get which samples are here
-        j_idx       = groups==j
+        j_idx       = groups == j
 
         # sample pi, z
         this_p_jk   = gtools::rdirichlet(1, rep(5, K))
@@ -61,12 +61,12 @@ generate_mvn_alpha_j_beta_k <- function(D, J, K, N, mu_0, alpha_j, beta_k, sigma
     if (missing(beta_k))
         beta_k  = matrix(rnorm(K*D)/2, ncol=D)
     if (missing(sigma_k))
-        sigma_k = sapply(1:K, function(k) {
+        sigma_k = vapply(seq_len(K), function(k) {
             corr_mat        = diag(D)
             sd_vec          = rep(k/10, D)
             sigma_tmp       = corr_mat %>% sweep(1, sd_vec, "*") %>% sweep(2, sd_vec, "*")
             return(sigma_tmp)
-        }) %>% array(dim=c(D, D, K))
+        }, matrix(D)) %>% array(dim=c(D, D, K))
     beta_k      = sweep(beta_k, 2, colMeans(beta_k), "-")
 
     # put ks in correct order
@@ -77,16 +77,16 @@ generate_mvn_alpha_j_beta_k <- function(D, J, K, N, mu_0, alpha_j, beta_k, sigma
     # sample J different groups
     j_weights   = exp(rnorm(J)/2)
     n_js        = as.vector(rmultinom(1, N, prob=j_weights))
-    j_vals      = 1:J
+    j_vals      = seq_len(J)
     groups      = rep(j_vals, times=n_js)
 
     # for each group, sample p_jk, z, x
     p_jk        = matrix(NA, J, K)
     z           = matrix(NA, N, 1)
-    k_vals      = 1:K
-    for (j in 1:J) {
+    k_vals      = seq_len(K)
+    for (j in seq_len(J)) {
         # get which samples are here
-        j_idx       = groups==j
+        j_idx       = groups == j
 
         # sample pi, z
         this_p_jk   = gtools::rdirichlet(1, rep(5, K))
@@ -96,9 +96,9 @@ generate_mvn_alpha_j_beta_k <- function(D, J, K, N, mu_0, alpha_j, beta_k, sigma
 
     # sample x
     x           = matrix(nrow=N, ncol=D)
-    for (k in 1:K) {
+    for (k in seq_len(K)) {
         # which entries, how many?
-        k_idx       = z[, 1]==k
+        k_idx       = z[, 1] == k
         n_k         = sum(k_idx)
 
         # prep mu
@@ -135,10 +135,10 @@ make_truth_alpha_j_beta_k <- function(data_list) {
     truth   = data.table(
         var     = c(
             paste0('mu_0'),
-            paste0('alpha_j[', 1:data_list$J, ']'),
-            paste0('beta_k[', 1:data_list$K, ']'),
-            paste0('sigma_k[', 1:data_list$K, ']'),
-            as.vector(outer(1:data_list$J, 1:data_list$K, function(j, k) paste0('p_jk[', j, ",", k, ']')))
+            paste0('alpha_j[', seq_len(data_list$J), ']'),
+            paste0('beta_k[', seq_len(data_list$K), ']'),
+            paste0('sigma_k[', seq_len(data_list$K), ']'),
+            as.vector(outer(seq_len(data_list$J), seq_len(data_list$K), function(j, k) paste0('p_jk[', j, ",", k, ']')))
             ),
         value   = c(
             data_list$mu_0, 
@@ -160,11 +160,11 @@ make_em_dt <- function(data_list, em_list) {
     em_dt   = data.table(
         var     = c(
             paste0('mu_0'),
-            paste0('alpha_j[', 1:data_list$J, ']'),
-            paste0('beta_k[', 1:data_list$K, ']'),
-            paste0('sigma_k[', 1:data_list$K, ']'),
-            paste0('p_k[', 1:data_list$K, ']'),
-            as.vector(outer(1:data_list$J, 1:data_list$K, function(j, k) paste0('p_jk[', j, ",", k, ']')))
+            paste0('alpha_j[', seq_len(data_list$J), ']'),
+            paste0('beta_k[', seq_len(data_list$K), ']'),
+            paste0('sigma_k[', seq_len(data_list$K), ']'),
+            paste0('p_k[', seq_len(data_list$K), ']'),
+            as.vector(outer(seq_len(data_list$J), seq_len(data_list$K), function(j, k) paste0('p_jk[', j, ",", k, ']')))
             ),
         value   = c(
             em_list$mu_0, 
@@ -180,9 +180,9 @@ make_em_dt <- function(data_list, em_list) {
 }
 
 calc_means <- function(dt) {
-    mu_0        = dt[var=='mu_0']$value
-    alphas      = dt[ var_type=='alpha_j', list(group, alpha_j=value, dummy=1) ]
-    betas       = dt[ var_type=='beta_k', list(comp, beta_k=value, dummy=1) ]
+    mu_0        = dt[var == 'mu_0']$value
+    alphas      = dt[ var_type == 'alpha_j', list(group, alpha_j=value, dummy=1) ]
+    betas       = dt[ var_type == 'beta_k', list(comp, beta_k=value, dummy=1) ]
     means_dt = merge(alphas, betas, by='dummy', allow.cartesian=TRUE) %>% .[, dummy := NULL ]
     means_dt[, mu_jk := mu_0 + alpha_j + beta_k ]
     return(means_dt)
@@ -204,11 +204,11 @@ calc_means <- function(dt) {
 extract_params_mvn <- function(data_list, param_list) {
     dt   = data.table(
         var     = c(
-            paste0('mu_0[', 1:data_list$D, ']'),
-            as.vector(outer(1:data_list$J, 1:data_list$D, function(j, d) paste0('alpha_j[', j,',', d, ']'))),
-            as.vector(outer(1:data_list$K, 1:data_list$D, function(k, d) paste0('beta_k[', k,',', d, ']'))),
-            as.vector(outer(1:(data_list$D^2), 1:data_list$K,  function(k, d) paste0('sigma_k[', k,',', d, ']'))),
-            as.vector(outer(1:data_list$J, 1:data_list$K, function(j, k) paste0('p_jk[', j, ",", k, ']')))
+            paste0('mu_0[', seq_len(data_list$D), ']'),
+            as.vector(outer(seq_len(data_list$J), seq_len(data_list$D), function(j, d) paste0('alpha_j[', j,',', d, ']'))),
+            as.vector(outer(seq_len(data_list$K), seq_len(data_list$D), function(k, d) paste0('beta_k[', k,',', d, ']'))),
+            as.vector(outer(seq_len(data_list$D^2), seq_len(data_list$K),  function(k, d) paste0('sigma_k[', k,',', d, ']'))),
+            as.vector(outer(seq_len(data_list$J), seq_len(data_list$K), function(j, k) paste0('p_jk[', j, ",", k, ']')))
             ),
         value   = c(
             param_list$mu_0,
@@ -237,9 +237,9 @@ extract_params_mvn <- function(data_list, param_list) {
 }
 
 calc_means_mvn <- function(dt) {
-    mu_0        = dt[ var_type=='mu_0', list(dim, mu_0=value, dummy=1) ]
-    alphas      = dt[ var_type=='alpha_j', list(dim, group, alpha_j=value, dummy=1) ]
-    betas       = dt[ var_type=='beta_k', list(dim, comp, beta_k=value, dummy=1) ]
+    mu_0        = dt[ var_type == 'mu_0', list(dim, mu_0=value, dummy=1) ]
+    alphas      = dt[ var_type == 'alpha_j', list(dim, group, alpha_j=value, dummy=1) ]
+    betas       = dt[ var_type == 'beta_k', list(dim, comp, beta_k=value, dummy=1) ]
     means_dt    = merge(
         alphas, betas, 
         by=c('dim'), allow.cartesian=TRUE) %>% 
@@ -254,9 +254,7 @@ calc_means_mvn <- function(dt) {
 
 #' Generate fake qc_df object for testing
 #'
-#' @importFrom data.table data.table
-#' @importFrom data.table rbindlist
-#' @importFrom data.table ":="
+#' @importFrom data.table data.table rbindlist ":="
 #' @return data.frame
 #' @keyword internal
 .make_toy_qc_df <- function() {
@@ -268,7 +266,7 @@ calc_means_mvn <- function(dt) {
     mu_logit_mito   = rnorm(J, -3, 1)
 
     # generate cell data
-    df_list = lapply(1:J, function(j) {
+    df_list = lapply(seq_len(J), function(j) {
         # unpack
         N           = N_per_sample[[j]]
         mu_counts   = mu_log_counts[[j]]
@@ -289,9 +287,9 @@ calc_means_mvn <- function(dt) {
     qc_df   = do.call(rbind, df_list)
 
     # add cell_id
-    qc_df$cell_id = sprintf('cell%04d', 1:nrow(qc_df))
+    qc_df$cell_id = sprintf('cell%04d', seq_len(nrow(qc_df)))
     n_cols  = ncol(qc_df)
-    qc_df   = qc_df[, c(n_cols, 1:(n_cols-1))]
+    qc_df   = qc_df[, c(n_cols, seq_len((n_cols-1)))]
 
     return(qc_df)
 }
@@ -305,15 +303,15 @@ calc_means_mvn <- function(dt) {
     # generate sample_ids
     J               = 10
     N_per_sample    = as.integer(exp(rnorm(J, log(200), 1)))
-    sample_ids      = rep(sprintf('sample%02d', 1:J), times=N_per_sample)
-    annot_1         = rep(sprintf('annot%02d', 1:J), times=N_per_sample)
+    sample_ids      = rep(sprintf('sample%02d', seq_len(J)), times=N_per_sample)
+    annot_1         = rep(sprintf('annot%02d', seq_len(J)), times=N_per_sample)
 
     # generate genes
     n_genes         = 100
-    gene_names      = sprintf('gene%03d', 1:n_genes)
+    gene_names      = sprintf('gene%03d', seq_len(n_genes))
     n_mt            = 13
-    mt_genes        = sprintf('mt-%02d', 1:n_mt)
-    gene_names[1:n_mt]  = mt_genes
+    mt_genes        = sprintf('mt-%02d', seq_len(n_mt))
+    gene_names[seq_len(n_mt)]  = mt_genes
 
     # make count matrix
     n_cells         = length(sample_ids)
@@ -321,7 +319,7 @@ calc_means_mvn <- function(dt) {
 
     # make column data
     cols_df         = data.frame(
-        cell_id     = sprintf('cell%04d', 1:n_cells),
+        cell_id     = sprintf('cell%04d', seq_len(n_cells)),
         sample_id   = factor(sample_ids),
         annot_1     = factor(annot_1)
         )

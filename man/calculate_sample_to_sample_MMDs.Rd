@@ -18,17 +18,21 @@ calculate_sample_to_sample_MMDs(
 \arguments{
 \item{qc_dt}{Data.table of QC metrics for all cells and samples}
 
-\item{qc_names}{List of metrics to actually use for calculating sample-to-sample distances}
+\item{qc_names}{List of metrics to actually use for calculating
+sample-to-sample distances}
 
 \item{sigma}{Scale for MMD kernel (defaults to length of qc_names)}
 
 \item{n_cores}{How many cores to parallelize over}
 
-\item{subsample}{Should we downsample the number of cells per sample to this number}
+\item{subsample}{Should we downsample the number of cells per sample to
+this number}
 
-\item{n_times}{How many times do we sample MMD between each pair of samples? (if subsampled, MMD is a stochastic value)}
+\item{n_times}{How many times do we sample MMD between each pair of samples?
+(if subsampled, MMD is a stochastic value)}
 
-\item{centre_samples, scale_samples}{Should we centre or scale the values within each sample before calculating MMD?}
+\item{centre_samples, scale_samples}{Should we centre or scale the values
+within each sample before calculating MMD?}
 }
 \value{
 list, containing MMD values and sample clusters based on MMD values

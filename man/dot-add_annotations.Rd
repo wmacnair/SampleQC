@@ -7,7 +7,8 @@
 .add_annotations(qc_dt)
 }
 \arguments{
-\item{sce}{SingleCellExperiment or data.frame (or data.table, some other class inheriting data.frame) containing calculated QC metrics}
+\item{sce}{SingleCellExperiment or data.frame (or data.table, some other
+class inheriting data.frame) containing calculated QC metrics}
 
 \item{qc_names}{list of qc_names that need to be extracted}
 }
