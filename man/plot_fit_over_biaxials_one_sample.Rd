@@ -8,7 +8,7 @@ plot_fit_over_biaxials_one_sample(
   fit_obj,
   qc_dt,
   sel_sample,
-  qc_names,
+  qc_names = NULL,
   alpha_cut = 0.01
 )
 }

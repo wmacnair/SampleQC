@@ -4,10 +4,10 @@
 \alias{make_qc_dt.data.frame}
 \title{Checks that input is ok, puts it into expected format}
 \usage{
-\method{make_qc_dt}{data.frame}(df, qc_names)
+\method{make_qc_dt}{data.frame}(x, qc_names = c("log_counts", "log_feats", "logit_mito"))
 }
 \arguments{
-\item{df}{data.frame object containing calculated QC metrics}
+\item{x}{data.frame object containing calculated QC metrics}
 
 \item{qc_names}{list of qc_names that need to be extracted}
 }

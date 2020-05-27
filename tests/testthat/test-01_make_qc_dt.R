@@ -1,4 +1,4 @@
-context("1: Preparing data.table of QC metrics")
+context("Preparing data.table of QC metrics")
 
 ################
 # set up

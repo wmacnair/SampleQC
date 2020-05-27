@@ -15,34 +15,30 @@
 #' @param qc_names list of qc_names that need to be extracted
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
-make_qc_dt <- function(x, qc_names) {
+make_qc_dt <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
     UseMethod("make_qc_dt")
 }
 
 #' Checks that input is ok, puts it into expected format
 #'
-#' @param df data.frame object containing calculated QC metrics
+#' @param x data.frame object containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @importFrom assertthat assert_that
 #' @importFrom data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
-make_qc_dt.data.frame <- function(df, qc_names) {
-    # add default qc_names
-    if (missing(qc_names))
-        qc_names    = c('log_counts', 'log_feats', 'logit_mito')
-
+make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
     # check that cell_id and sample_id are present
-    df_names    = colnames(df)
+    df_names    = colnames(x)
     if ( !('cell_id' %in% df_names) )
         stop('cell_id must be column of data.frame')
     if ( !('sample_id' %in% df_names) )
         stop('sample_id must be column of data.frame')
-    if ( length(unique(df$cell_id))<nrow(df) )
+    if ( length(unique(x$cell_id))<nrow(x) )
         stop('cell_id values must be unique')
 
     # put into data.table
-    qc_dt           = data.table(df)
+    qc_dt           = data.table(x)
 
     # check which names are present
     non_mito_names  = setdiff(qc_names, c('logit_mito', 'mito_prop'))
@@ -87,7 +83,7 @@ make_qc_dt.data.frame <- function(df, qc_names) {
 
 #' Checks that input is ok, puts it into expected format
 #'
-#' @param sce SingleCellExperiment or data.frame (or data.table, some other class inheriting data.frame) containing calculated QC metrics
+#' @param x SingleCellExperiment or data.frame (or data.table, some other class inheriting data.frame) containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
@@ -102,23 +98,19 @@ make_qc_dt.data.frame <- function(df, qc_names) {
 #' @importFrom data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
-make_qc_dt.SingleCellExperiment <- function(sce, qc_names) {
-    # add default qc_names
-    if (missing(qc_names))
-        qc_names    = c('log_counts', 'log_feats', 'logit_mito')
-
-    # otherwise calc things for SCE
-    assert_that( 'SingleCellExperiment' %in% class(sce) )
-    assert_that( !is.null(colnames(sce)) )
-    assert_that( !is.null(sce$sample_id) )
-    assert_that( length(unique(colnames(sce)))==ncol(sce) )
+make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
+    # some checks before starting
+    assert_that( 'SingleCellExperiment' %in% class(x) )
+    assert_that( !is.null(colnames(x)) )
+    assert_that( !is.null(x$sample_id) )
+    assert_that( length(unique(colnames(x)))==ncol(x) )
 
     # remove proteins if necessary
-    type_col        = rowData(sce)$Type
+    type_col        = rowData(x)$Type
     if (!is.null(type_col)) {
         warning("column 'Type' found in `rowData`; assuming that this is a multi-modal dataset and restricting to rows labelled as 'Gene Expression'")
         warning("to avoid this message, or if this is not what you want to do, please make a copy of your sce with only the rows you are interested in, and no 'Type' column in `rowData`")
-        sce         = sce[ type_col=='Gene Expression', ]
+        x         = x[ type_col=='Gene Expression', ]
     }
 
     # warning
@@ -126,34 +118,34 @@ make_qc_dt.SingleCellExperiment <- function(sce, qc_names) {
         warning("'log_counts' is not specified as in qc_names - are you sure you want to do QC without log_counts?")
 
     # restrict to cells >= 1 count
-    total_counts    = Matrix::colSums(counts(sce))
+    total_counts    = Matrix::colSums(counts(x))
     if (any(total_counts==0))
         stop("at least some cells have 0 reads; please remove these before running `make_qc_dt`")
 
     # define output dt
     qc_dt = data.table(
-        cell_id     = colnames(sce),
-        sample_id   = sce$sample_id
+        cell_id     = colnames(x),
+        sample_id   = x$sample_id
         )
 
     # add specified QC metrics one by one
     if ('log_counts' %in% qc_names)
         qc_dt[, log_counts  := log10(total_counts) ]
     if ('log_feats' %in% qc_names) {
-        total_feats     = (counts(sce) > 0) %>% Matrix::colSums(.)
+        total_feats     = (counts(x) > 0) %>% Matrix::colSums(.)
         qc_dt[, log_feats   := log10(total_feats) ]
     }
     if ('logit_mito' %in% qc_names) {
         # prepare to calc stats
-        idx_mt          = rownames(sce) %>% str_detect('^mt-')
+        idx_mt          = rownames(x) %>% str_detect('^mt-')
         if (sum(idx_mt)==0)
-            idx_mt          = rownames(sce) %>% str_detect('^Mt-')
+            idx_mt          = rownames(x) %>% str_detect('^Mt-')
         if (sum(idx_mt)<13)
             warning('found ', sum(idx_mt), ' mitochondrial genes, which is less than the expected 13 human genes; you may want to check your data')
 
         # calculate stats by hand
-        non_mt_counts   = sce[ !idx_mt, ] %>% counts %>% Matrix::colSums(.)
-        mt_counts       = sce[ idx_mt, ] %>% counts %>% Matrix::colSums(.)
+        non_mt_counts   = x[ !idx_mt, ] %>% counts %>% Matrix::colSums(.)
+        mt_counts       = x[ idx_mt, ] %>% counts %>% Matrix::colSums(.)
 
         # add all of them
         qc_dt[, log_mito    := log10(mt_counts + 1) ]
@@ -165,8 +157,8 @@ make_qc_dt.SingleCellExperiment <- function(sce, qc_names) {
     qc_dt       = .add_annotations(qc_dt)
 
     # add any annotations from coldata
-    other_vars  = setdiff(names(colData(sce)), colnames(qc_dt))
-    qc_dt       = cbind(qc_dt, as.data.table(colData(sce)[other_vars]))
+    other_vars  = setdiff(names(colData(x)), colnames(qc_dt))
+    qc_dt       = cbind(qc_dt, as.data.table(colData(x)[other_vars]))
 
     # check values
     .check_qc_dt(qc_dt, qc_names)

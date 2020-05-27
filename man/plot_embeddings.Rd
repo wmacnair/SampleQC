@@ -5,7 +5,11 @@
 \title{Plots non-linear embeddings of MMD distances calculated by
 embed_sample_to_sample_MMDs}
 \usage{
-plot_embeddings(mmd_list, var_type, sel_embed)
+plot_embeddings(
+  mmd_list,
+  var_type = c("discrete", "continuous"),
+  sel_embed = c("MDS", "UMAP")
+)
 }
 \arguments{
 \item{var_type}{Is this annotation discrete or continuous?}

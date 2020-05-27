@@ -1,4 +1,4 @@
-context("2: Sample-level functions")
+context("Sample-level functions")
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
 
 ################

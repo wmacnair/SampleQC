@@ -68,7 +68,7 @@
 #' @importFrom igraph cluster_louvain
 #' @return list, containing MMD values and sample clusters based on MMD values
 #' @export
-calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names, sigma, n_cores=16, subsample=1000, n_times=10, centre_samples=TRUE, scale_samples=FALSE) {
+calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 'log_feats', 'logit_mito'), sigma, n_cores=16, subsample=1000, n_times=10, centre_samples=TRUE, scale_samples=FALSE) {
     # check some inputs
     if( missing(sigma) )
         sigma   = length(qc_names)
@@ -260,8 +260,11 @@ embed_sample_to_sample_MMDs <- function(mmd_list, qc_dt, annot_discrete=NULL, an
 #' @importFrom assertthat assert_that
 #' @return NULL
 #' @export
-plot_embeddings <- function(mmd_list, var_type, sel_embed) {
-    assert_that( var_type %in% c('discrete', 'continuous') )
+plot_embeddings <- function(mmd_list, var_type=c('discrete', 'continuous'), sel_embed=c('MDS', 'UMAP')) {
+    # check inputs
+    var_type    = match.arg(var_type)
+    sel_embed   = match.arg(sel_embed)
+
     if (var_type=='discrete') {
         annot_vars  = mmd_list$annot_discrete
     } else {

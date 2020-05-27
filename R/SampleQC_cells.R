@@ -42,7 +42,10 @@
 #'
 #' @return list, containing MMD values and sample clusters based on MMD values
 #' @export
-fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_all=NULL, K_list=NULL, n_cores, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method='robust') {
+fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats', 'logit_mito'), K_all=NULL, K_list=NULL, n_cores, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method=c('robust', 'mle')) {
+    # check some inputs
+    method      = match.arg(method)
+
     # check specification of type of run is ok
     if (!is.null(K_all) & !is.null(K_list))
         stop('only one of `K_all` and `K_list` should be specified at one time; see ?fit_sampleQC')
@@ -65,8 +68,6 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_all=NULL, K_list=NULL, n_c
             msg     = 'K_all must be an integer greater than 0')
     }
     # check inputs
-    if (missing(qc_names))
-        qc_names    = c('log_counts', 'log_feats', 'logit_mito')
     if (list_flag) {
         if (missing(n_cores))
             n_cores     = length(K_list)        
@@ -122,14 +123,12 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_all=NULL, K_list=NULL, n_c
 #'
 #' @return list, containing lots of cell outlier information
 #' @keywords internal
-.fit_one_sampleQC <- function(qc_dt, qc_names, K=1, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method='robust') {
+.fit_one_sampleQC <- function(qc_dt, qc_names=c('log_counts', 'log_feats', 'logit_mito'), K=1, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, method=c('robust', 'mle')) {
     # checks of inputs
-    if (missing(qc_names))
-        qc_names    = c('log_counts', 'log_feats', 'log_mito')
-    assert_that( all(qc_names %in% names(qc_dt)) )
     # assert_that( is.integer(K) & K>0 )
     # assert_that( is.integer(em_iters) & em_iters>0 )
-    assert_that( method %in% c('robust', 'mle') )
+    method      = match.arg(method)
+    assert_that( all(qc_names %in% names(qc_dt)) )
 
     # extract x values
     x           = as.matrix(qc_dt[, qc_names, with=FALSE])
@@ -419,7 +418,11 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names, K_all=NULL, K_list=NULL, n_c
 #' @importFrom ggplot2 labs
 #' @return ggplot object
 #' @export
-plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample, qc_names, alpha_cut=0.01) {
+plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample, qc_names=NULL, alpha_cut=0.01) {
+    # if qc_names not specified, use those in sample
+    if (is.null(qc_names))
+        qc_names    = fit_obj$qc_names
+
     # get points
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]

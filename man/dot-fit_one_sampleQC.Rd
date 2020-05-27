@@ -6,13 +6,13 @@
 \usage{
 .fit_one_sampleQC(
   qc_dt,
-  qc_names,
+  qc_names = c("log_counts", "log_feats", "logit_mito"),
   K = 1,
   alpha = 0.01,
   em_iters = 50,
   mcd_alpha = 0.5,
   mcd_iters = 50,
-  method = "robust"
+  method = c("robust", "mle")
 )
 }
 \arguments{

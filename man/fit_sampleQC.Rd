@@ -13,7 +13,7 @@ Fits \code{SampleQC} model to one cluster of samples}
 fit_sampleQC(
   mmd_list,
   qc_dt,
-  qc_names,
+  qc_names = c("log_counts", "log_feats", "logit_mito"),
   K_all = NULL,
   K_list = NULL,
   n_cores,
@@ -21,7 +21,7 @@ fit_sampleQC(
   em_iters = 50,
   mcd_alpha = 0.5,
   mcd_iters = 50,
-  method = "robust"
+  method = c("robust", "mle")
 )
 }
 \arguments{

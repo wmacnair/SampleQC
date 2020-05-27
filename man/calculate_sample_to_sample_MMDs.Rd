@@ -6,7 +6,7 @@
 \usage{
 calculate_sample_to_sample_MMDs(
   qc_dt,
-  qc_names,
+  qc_names = c("log_counts", "log_feats", "logit_mito"),
   sigma,
   n_cores = 16,
   subsample = 1000,

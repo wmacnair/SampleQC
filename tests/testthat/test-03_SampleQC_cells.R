@@ -1,4 +1,4 @@
-context("3: Cell-level functions")
+context("Cell-level functions")
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
 
 ################

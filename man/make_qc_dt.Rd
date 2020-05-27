@@ -6,7 +6,7 @@
 SingleCellExperiment object, or copying them from a data.frame that the
 user has already made. Also does a little bit of checking of the inputs.}
 \usage{
-make_qc_dt(x, qc_names)
+make_qc_dt(x, qc_names = c("log_counts", "log_feats", "logit_mito"))
 }
 \arguments{
 \item{x}{either SCE, or data.frame object containing calculated QC metrics}
