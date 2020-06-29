@@ -102,18 +102,18 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
     }
 
     # fit each one on different core
-    em_all      = mclapply(seq_along(qc_dt_list), 
+    em_list         = mclapply(seq_along(qc_dt_list), 
         function(i) .fit_one_sampleQC(
             qc_dt_list[[i]], qc_names, K_list[[i]], 
             alpha, em_iters, mcd_alpha, mcd_iters, method
             ), mc.cores=n_cores)
-    # em_all      = lapply(seq_along(qc_dt_list), 
+    # em_list      = lapply(seq_along(qc_dt_list), 
     #     function(i) .fit_one_sampleQC(qc_dt_list[[i]], qc_names, 
     # K_list[[i]], alpha, em_iters, mcd_alpha, mcd_iters, method))
 
-    names(em_all)   = names(qc_dt_list)
+    names(em_list)   = names(qc_dt_list)
     
-    return(em_all)
+    return(em_list)
 }
 
 #' Fits `SampleQC` model to one cluster of samples
@@ -186,7 +186,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
                 G=K, modelNames=model_spec)$classification-1
         }
         message('running robust EM algorithm')
-        em_list     = fit_sampleQC_robust_cpp(
+        em_obj      = fit_sampleQC_robust_cpp(
             x, init_z, groups_0, D, J, K, N, 
             em_iters, mcd_alpha, mcd_iters
             )
@@ -201,82 +201,82 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
         }
 
         message('running EM algorithm')
-        em_list     = fit_sampleQC_mle_cpp(
+        em_obj     = fit_sampleQC_mle_cpp(
             x, init_gamma, groups_0, 
             D, J, K, N, em_iters)
     }
 
     # adjust mu_0, alpha_j and beta_k to have zero means
-    alpha_means     = colMeans(em_list$alpha_j)
-    beta_means      = colMeans(em_list$beta_k)
-    em_list$mu_0    = as.vector(em_list$mu_0) + alpha_means + beta_means
-    em_list$alpha_j = sweep(em_list$alpha_j, 2, alpha_means, "-")
-    em_list$beta_k  = sweep(em_list$beta_k, 2, beta_means, "-")
+    alpha_means     = colMeans(em_obj$alpha_j)
+    beta_means      = colMeans(em_obj$beta_k)
+    em_obj$mu_0     = as.vector(em_obj$mu_0) + alpha_means + beta_means
+    em_obj$alpha_j  = sweep(em_obj$alpha_j, 2, alpha_means, "-")
+    em_obj$beta_k   = sweep(em_obj$beta_k, 2, beta_means, "-")
 
     # process results
-    em_list$sample_list = sample_list
-    em_list$qc_names    = qc_names
+    em_obj$sample_list  = sample_list
+    em_obj$qc_names     = qc_names
     for (n in c("llike", "hyper_dt", "metadata"))
-        em_list[[n]]    = "blank"
-    em_list$sample_id   = .make_mu_jk_dt(em_list)
+        em_obj[[n]]     = "blank"
+    em_obj$sample_id    = .make_mu_jk_dt(em_obj)
 
     # tidy some stuff
-    em_list$like_1  = as.vector(em_list$like_1)
-    em_list$like_2  = as.vector(em_list$like_2)
+    em_obj$like_1   = as.vector(em_obj$like_1)
+    em_obj$like_2   = as.vector(em_obj$like_2)
 
     # extract mu and sigma values
-    setkey(em_list$sample_id, 'qc_metric')
+    setkey(em_obj$sample_id, 'qc_metric')
     mu_list     = lapply(
-        em_list$sample_list, function(sel_sample) {
-            lapply(seq_len(em_list$K), function(k) {
-                temp_dt     = em_list$sample_id[ (sample_id == sel_sample) & 
+        em_obj$sample_list, function(sel_sample) {
+            lapply(seq_len(em_obj$K), function(k) {
+                temp_dt     = em_obj$sample_id[ (sample_id == sel_sample) & 
                     (component == k) ]
                 temp_dt     = temp_dt[qc_names]
                 vals        = temp_dt$value %>% setNames(qc_names)
                 return(vals)
             }) }) %>% setNames(sample_list)
     sigma_list  = lapply(
-        em_list$sample_list, function(s) {
-            lapply(seq_len(em_list$K), function(k) 
-                em_list$sigma_k[ , , k ] %>% 
+        em_obj$sample_list, function(s) {
+            lapply(seq_len(em_obj$K), function(k) 
+                em_obj$sigma_k[ , , k ] %>% 
                     set_rownames(qc_names) %>% 
                     set_colnames(qc_names))
         }) %>% setNames(sample_list)
-    em_list$mu_list     = mu_list
-    em_list$sigma_list  = sigma_list
+    em_obj$mu_list      = mu_list
+    em_obj$sigma_list   = sigma_list
 
     # extract outliers
-    em_list$p_jk_outliers   = .calc_p_jk_proportions(em_list, x, groups, alpha)
-    em_list$outliers_dt     = .calc_outliers_dt(em_list, x, groups, alpha)
-    em_list$outliers_plot   = .calc_outliers_plot(qc_dt, em_list)
+    em_obj$p_jk_outliers    = .calc_p_jk_proportions(em_obj, x, groups, alpha)
+    em_obj$outliers_dt      = .calc_outliers_dt(em_obj, x, groups, alpha)
+    em_obj$outliers_plot    = .calc_outliers_plot(qc_dt, em_obj)
 
-    return(em_list)
+    return(em_obj)
 }
 
-#' Extract parameters from fitted em_list
+#' Extract parameters from fitted em_obj
 #' 
-#' @param em_list Most of output from .fit_one_sampleQC
+#' @param em_obj Most of output from .fit_one_sampleQC
 #' 
 #' @importFrom magrittr "%>%"
 #' @importFrom data.table data.table ":="
 #'
 #' @return data.table containing fitted parameters
 #' @keywords internal
-.make_mu_jk_dt <- function(em_list) {
-    qc_names    = em_list$qc_names
+.make_mu_jk_dt <- function(em_obj) {
+    qc_names    = em_obj$qc_names
     mu_0    = data.table(
         qc_metric   = qc_names, 
-        mu_0        = as.vector(em_list$mu_0)
+        mu_0        = as.vector(em_obj$mu_0)
         )
     alphas  = data.table(
-        qc_metric   = rep(qc_names, each=em_list$J), 
-        sample_id   = rep(em_list$sample_list, times=em_list$D), 
-        alpha_j     = as.vector(em_list$alpha_j)
+        qc_metric   = rep(qc_names, each=em_obj$J), 
+        sample_id   = rep(em_obj$sample_list, times=em_obj$D), 
+        alpha_j     = as.vector(em_obj$alpha_j)
         )
     betas   = data.table(
-        qc_metric   = rep(qc_names, each=em_list$K), 
-        component   = rep(seq_len(em_list$K), times=em_list$D), 
-        beta_k      = as.vector(em_list$beta_k)
+        qc_metric   = rep(qc_names, each=em_obj$K), 
+        component   = rep(seq_len(em_obj$K), times=em_obj$D), 
+        beta_k      = as.vector(em_obj$beta_k)
         )
     mu_jk_dt    = data.table:::merge.data.table(alphas, betas,
         by=c('qc_metric'), allow.cartesian=TRUE) %>% 
@@ -289,7 +289,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 
 #' Calculate proportions of cells within each sample allocated to each 
 #' 
-#' @param em_list Most of output from .fit_one_sampleQC
+#' @param em_obj Most of output from .fit_one_sampleQC
 #' @param x Matrix of QC values
 #' @param groups Sample labels for every cell
 #' @param alpha Chi squared threshold defining outliers
@@ -300,17 +300,17 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 #'
 #' @return data.table containing fitted parameters
 #' @keywords internal
-.calc_p_jk_proportions <- function(em_list, x, groups, alpha) {
+.calc_p_jk_proportions <- function(em_obj, x, groups, alpha) {
     # unpack
-    mu_0        = em_list$mu_0
-    alpha_js    = em_list$alpha_j
-    beta_ks     = em_list$beta_k
-    sigma_ks    = em_list$sigma_k
-    K           = em_list$K
-    sample_list = em_list$sample_list
+    mu_0        = em_obj$mu_0
+    alpha_js    = em_obj$alpha_j
+    beta_ks     = em_obj$beta_k
+    sigma_ks    = em_obj$sigma_k
+    K           = em_obj$K
+    sample_list = em_obj$sample_list
 
     # calc maha distance threshold for relevant chi-squared distn
-    ndims       = length(em_list$qc_names)
+    ndims       = length(em_obj$qc_names)
     maha_cut    = qchisq(1 - alpha, df=ndims)
 
     # loop through groups
@@ -361,7 +361,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 
 #' Calculate outliers for each cell
 #' 
-#' @param em_list Most of output from .fit_one_sampleQC
+#' @param em_obj Most of output from .fit_one_sampleQC
 #' @param x Matrix of QC values
 #' @param groups Sample labels for every cell
 #' @param alpha Chi squared threshold defining outliers
@@ -372,17 +372,17 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 #'
 #' @return data.table containing fitted parameters
 #' @keywords internal
-.calc_outliers_dt <- function(em_list, x, groups, alpha) {
+.calc_outliers_dt <- function(em_obj, x, groups, alpha) {
     # unpack
-    mu_0        = em_list$mu_0
-    alpha_js    = em_list$alpha_j
-    beta_ks     = em_list$beta_k
-    sigma_ks    = em_list$sigma_k
-    K           = em_list$K
-    sample_list = em_list$sample_list
+    mu_0        = em_obj$mu_0
+    alpha_js    = em_obj$alpha_j
+    beta_ks     = em_obj$beta_k
+    sigma_ks    = em_obj$sigma_k
+    K           = em_obj$K
+    sample_list = em_obj$sample_list
 
     # calc maha distance threshold for relevant chi-squared distn
-    ndims       = length(em_list$qc_names)
+    ndims       = length(em_obj$qc_names)
     maha_cut    = qchisq(1 - alpha, df=ndims)
 
     # centre x by alpha_js
@@ -412,7 +412,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 #' Make data.table for plotting outliers over QC metrics
 #' 
 #' @param qc_dt data.table of QC metrics
-#' @param em_list Most of output from .fit_one_sampleQC
+#' @param em_obj Most of output from .fit_one_sampleQC
 #' 
 #' @importFrom magrittr "%>%"
 #' @importFrom data.table data.table
@@ -421,9 +421,9 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 #'
 #' @return data.table containing fitted parameters
 #' @keywords internal
-.calc_outliers_plot <- function(qc_dt, em_list) {
-    outliers_dt = em_list$outliers_dt
-    qc_names    = em_list$qc_names
+.calc_outliers_plot <- function(qc_dt, em_obj) {
+    outliers_dt = em_obj$outliers_dt
+    qc_names    = em_obj$qc_names
     outliers_plot   = outliers_dt[, list(cell_id, sample_id, outlier)] %>%
         data.table:::merge.data.table(
             qc_dt[, c('cell_id', qc_names), with=FALSE], on='cell_id'
@@ -482,8 +482,9 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
         ) %>% rbindlist
 
     # extract means
-    idx         = (stat == 'mean') & (sample_id == sel_sample)
-    means_dt    = fit_obj$sample_id[ idx ] %>%
+    means_dt    = fit_obj$sample_id[
+        (stat == 'mean') & (sample_id == sel_sample)
+        ] %>%
         dcast(component ~ qc_metric, value.var='value') %>%
         melt(id=c('component', qc_1), 
             variable.name='other_qc', value.name='qc_x') %>%
@@ -585,7 +586,7 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
 
 #' Calculates path for an ellipse based on 2D mu and sigma values
 #'
-#' @param em_list Output from .fit_one_sampleQC
+#' @param em_obj Output from .fit_one_sampleQC
 #' @param s Selected sample
 #'
 #' @importFrom magrittr "%>%"
@@ -596,8 +597,12 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
 #' @importFrom scales pretty_breaks
 #' @return ggplot object
 #' @export
-plot_outliers_one_sample <- function(em_list, s) {
-    dt  = em_list$outliers_plot[ sample_id == s ]
+plot_outliers_one_sample <- function(em_obj, s) {
+    # unpack
+    qc_names    = em_obj$qc_names
+    dt          = em_obj$outliers_plot[ sample_id == s ]
+
+    # plot
     g   = ggplot() + 
         aes(y=qc_y, x=qc_x, colour=outlier) +
         geom_point(data=dt[outlier == FALSE], size=2, colour='grey' ) +
@@ -608,6 +613,7 @@ plot_outliers_one_sample <- function(em_list, s) {
         theme_bw() + 
         # theme( aspect.ratio=1 ) +
         labs( y=qc_names[[1]], x='other QC variable', colour='outlier?' )
+
     return(g)
 }
 

@@ -22,9 +22,8 @@ library('SampleQC')
 library('patchwork')
 ```
 
-```{r setup_vars}
+```{r setup_vars, cache=FALSE}
 # define what to use and annotate
-qc_names        = em_list[[1]]$qc_names
 cluster_names   = names(em_list)
 n_clusters      = length(em_list)
 ```
@@ -64,12 +63,11 @@ plot_embeddings(mmd_list, "continuous", "MDS")
 These plots show biaxial distributions of each sample, annotated with both the fitted mean and covariance matrices, and the cells which are then identified as outliers. You can use this to check that you have the correct number of components for each sample grouping, and to check that the fitting procedure has worked properly. The means and covariances of the components should match up to the densest parts of the biaxial plots.
 
 ```{r plot_histograms_split, fig.height=6, fig.width=7, results='asis'}
-alpha_cut   = 0.001
 for (ii in 1:n_clusters) {
     cat('## ', cluster_names[ii], '{.tabset}\n')
     for (s in sort(em_list[[ii]]$sample_list)) {
         cat('### ', s, ' \n')
-        g_fit   = plot_fit_over_biaxials_one_sample(em_list[[ii]], qc_dt, s, qc_names, alpha_cut)
+        g_fit   = plot_fit_over_biaxials_one_sample(em_list[[ii]], qc_dt, s)
         g_out   = plot_outliers_one_sample(em_list[[ii]], s)
         g       = g_fit / g_out
         print(g)
