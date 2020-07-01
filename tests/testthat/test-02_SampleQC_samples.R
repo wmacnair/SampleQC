@@ -49,3 +49,7 @@ test_that("automatic handling of annot_discrete, annot_continuous", {
     expect_equal(mmd_list$annot_discrete, c('annot_1', 'QC_clust', 'N_cat', 'mito_cat', 'counts_cat'))
     expect_equal(mmd_list$annot_cont, c('log_N', 'med_mito', 'med_counts'))
 })
+
+test_that("MMD seeds should be replicable", {
+    # related to Simone's comment
+})
