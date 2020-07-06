@@ -11,9 +11,7 @@ statistics
 Fits \code{SampleQC} model to one cluster of samples}
 \usage{
 fit_sampleQC(
-  mmd_list,
-  qc_dt,
-  qc_names = c("log_counts", "log_feats", "logit_mito"),
+  qc_obj,
   K_all = NULL,
   K_list = NULL,
   n_cores,
@@ -25,12 +23,7 @@ fit_sampleQC(
 )
 }
 \arguments{
-\item{mmd_list}{Outputs from calculate_sample_to_sample_MMDs}
-
-\item{qc_dt}{Data.table of QC metrics for all cells and samples}
-
-\item{qc_names}{List of metrics to actually use for calculating sample-to-
-sample distances}
+\item{qc_obj}{Output from calculate_sample_to_sample_MMDs}
 
 \item{K_all, K_list}{How many QC celltypes do we expect? Exactly one of K_all
 and K_list should be specified. If the user wants to fit the same model to

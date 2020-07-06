@@ -2,14 +2,17 @@
 % Please edit documentation in R/SampleQC_samples.R
 \name{calculate_sample_to_sample_MMDs}
 \alias{calculate_sample_to_sample_MMDs}
-\title{Calculates MMD distances between all samples in qc_dt object}
+\title{Calculates MMD distances between all samples in qc_dt object, then and
+embeds them with some annotations.}
 \usage{
 calculate_sample_to_sample_MMDs(
   qc_dt,
   qc_names = c("log_counts", "log_feats", "logit_mito"),
+  annots_disc = NULL,
+  annots_cont = NULL,
+  n_cores = 4,
   sigma,
-  n_cores = 16,
-  subsample = 1000,
+  subsample = 200,
   n_times = 10,
   centre_samples = TRUE,
   scale_samples = FALSE
@@ -21,9 +24,9 @@ calculate_sample_to_sample_MMDs(
 \item{qc_names}{List of metrics to actually use for calculating
 sample-to-sample distances}
 
-\item{sigma}{Scale for MMD kernel (defaults to length of qc_names)}
-
 \item{n_cores}{How many cores to parallelize over}
+
+\item{sigma}{Scale for MMD kernel (defaults to length of qc_names)}
 
 \item{subsample}{Should we downsample the number of cells per sample to
 this number}
@@ -35,10 +38,11 @@ this number}
 within each sample before calculating MMD?}
 }
 \value{
-list, containing MMD values and sample clusters based on MMD values
+slightly funky \code{sce} object
 }
 \description{
-Calculates MMD distances between all samples in qc_dt object
+Calculates MMD distances between all samples in qc_dt object, then and
+embeds them with some annotations.
 }
 \section{Details}{
 

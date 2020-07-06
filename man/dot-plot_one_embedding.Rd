@@ -5,16 +5,16 @@
 \title{Plots non-linear embeddings of MMD distances calculated by
 embed_sample_to_sample_MMDs}
 \usage{
-.plot_one_embedding(mmd_list, v, var_type, sel_embed)
+.plot_one_embedding(qc_obj, v, var_type, sel_embed)
 }
 \arguments{
+\item{qc_obj}{SampleQC object}
+
+\item{v}{Which annotation variable to plot}
+
 \item{var_type}{Is this annotation discrete or continuous?}
 
 \item{sel_embed}{Which type of embedding to use}
-
-\item{embed_dt}{Output from embed_sample_to_sample_MMDs}
-
-\item{annot_var}{Which annotation variable to plot}
 }
 \value{
 ggplot object

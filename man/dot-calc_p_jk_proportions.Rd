@@ -2,12 +2,13 @@
 % Please edit documentation in R/SampleQC_cells.R
 \name{.calc_p_jk_proportions}
 \alias{.calc_p_jk_proportions}
-\title{Calculate proportions of cells within each sample allocated to each}
+\title{DEPRECATED: Calculate proportions of cells within each sample allocated
+to each}
 \usage{
-.calc_p_jk_proportions(em_list, x, groups, alpha)
+.calc_p_jk_proportions(fit_obj, x, groups, alpha)
 }
 \arguments{
-\item{em_list}{Most of output from .fit_one_sampleQC}
+\item{fit_obj}{Most of output from .fit_one_sampleQC}
 
 \item{x}{Matrix of QC values}
 
@@ -19,6 +20,7 @@
 data.table containing fitted parameters
 }
 \description{
-Calculate proportions of cells within each sample allocated to each
+DEPRECATED: Calculate proportions of cells within each sample allocated
+to each
 }
 \keyword{internal}

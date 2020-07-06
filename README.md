@@ -54,7 +54,7 @@ If you already have a data.frame, it should contain the following columns:
 
 * `cell_id`, a unique identifier for each cell
 * `sample_id`, identifier for experimental sample
-* at least one QC metric (user's choice, e.g. _log_counts_, _log_feats_, _logit_mito_)
+* at least one QC metric (user's choice, e.g. _log_counts_, _log_feats_, and _logit_mito_)
 * optionally, some additional annotations of the samples, e.g. _batch_id_, _patient_id_, _condition_
 
 The optional annotations are for checking whether there are differences in sample-level statistics which are consistent across some groups, e.g. _log_counts_ is consistently low in a particular batch.
@@ -81,19 +81,20 @@ We first define some parameters that we want to use.
 # which QC metrics do we want to use? (the most important bit)
 qc_names        = c('log_counts', 'log_feats', 'logit_mito')
 # which discrete-valued variables do we want to annotate the samples with?
-annot_discrete  = c('well_id', 'patient_id', 'condition')
+annots_disc     = c('well_id', 'patient_id', 'condition')
 # which continuous-valued variables do we want to annotate the samples with?
-annot_cont      = NULL
+annots_cont     = NULL
 ```
 
 `SampleQC` generates some additional automatic annotations, such as median mitochondrial proportion by sample and sample size.
 
-We then calculate distances between all the samples, and embed this matrix via a couple of dimensionality reduction options.
+We then calculate distances between all the samples, and embed this matrix via a couple of dimensionality reduction options. `SampleQC` stores everything in a `SingleCellExperiment` object, which makes things neat (hopefully...).
 
 ```R
-mmd_list    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, subsample=200, n_times=20, n_cores=16)
-mmd_list    = embed_sample_to_sample_MMDs(mmd_list, qc_dt, annot_discrete, annot_cont, n_nhbrs=5)
-print(table(mmd_list$mmd_clusts))
+qc_obj      = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
+    annots_disc=annots_disc, annots_cont=annots_cont, 
+    subsample=200, n_times=20, n_cores=4)
+print(table(colData(qc_obj)$group_id))
 ```
 
 Next we fit Gaussian mixture models, either one to each of the sample groupings that we found, or to the whole dataset. The user needs to specify how many clusters to fit in each group of samples. The quickest way to do this is to start with `K=1` for each cluster, plot the results, and then inspect the outputs to find which value is best for each cluster. Fitting to real data can be difficult; you may to try multiple different values of K, and maybe also tweak some parameters.
@@ -101,15 +102,15 @@ Next we fit Gaussian mixture models, either one to each of the sample groupings 
 To fit to each of the sample groupings individually, you use the parameter `K_list`.
 
 ```R
-em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_list=c(1,1,1,1))
-# em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_list=c(2,3,2,2))
+qc_obj      = fit_sampleQC(qc_obj, K_list=rep(1, metadata(qc_obj)$n_groups))
+# qc_obj      = fit_sampleQC(qc_obj, K_list=c(2,3,2,2))
 ```
 
 To fit one model to the whole of the dataset, you use the parameter `K_all`. You might want to do this when you have relatively few samples (e.g. 30 or fewer) and / or when your samples have very similar distributions of QC metrics.
 
 ```R
-em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_all=1)
-# em_list     = fit_sampleQC(mmd_list, qc_dt, qc_names, K_all=2)
+qc_obj      = fit_sampleQC(qc_obj, K_all=1)
+# qc_obj      = fit_sampleQC(qc_obj, K_all=2)
 ```
 
 Once you've fit everything, you can render an html report and check whether it makes sense. 
@@ -121,7 +122,7 @@ save_dir    = '/home/work/my_project/qc/'
 dir.create(save_dir)
 
 # render the report!
-make_SampleQC_report(mmd_list, em_list, save_dir, proj_name)
+make_SampleQC_report(qc_obj, save_dir, proj_name)
 ```
 
 
@@ -129,7 +130,7 @@ make_SampleQC_report(mmd_list, em_list, save_dir, proj_name)
 
 Things I'm planning to include:
 
-* Unit tests
+* More unit tests (you can always do more unit tests...)
 * Some kind of testing of the *Rcpp* bits
 
 Things I'm considering including:

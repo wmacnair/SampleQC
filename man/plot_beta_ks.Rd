@@ -4,10 +4,12 @@
 \alias{plot_beta_ks}
 \title{Plots estimates of cluster splits by sample, with KL divergence from mean}
 \usage{
-plot_beta_ks(fit_obj)
+plot_beta_ks(qc_obj, sel_group)
 }
 \arguments{
-\item{fit_obj}{fit_obj object from function fit_qc_model}
+\item{qc_obj}{Output from function fit_sampleQC}
+
+\item{sel_group}{Which sample group to plot}
 }
 \value{
 ggplot object

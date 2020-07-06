@@ -4,10 +4,12 @@
 \alias{plot_alpha_js_likelihoods}
 \title{Plots inferred sample-level statistics, with empirical log-likelihood}
 \usage{
-plot_alpha_js_likelihoods(fit_obj, df = 5)
+plot_alpha_js_likelihoods(qc_obj, sel_group, df = 5)
 }
 \arguments{
-\item{fit_obj}{fit_obj object from function fit_qc_model}
+\item{qc_obj}{Output from function fit_sampleQC}
+
+\item{sel_group}{Which sample group to plot}
 
 \item{df}{degrees of freedom for multivariate t}
 }

@@ -24,8 +24,8 @@ library('patchwork')
 
 ```{r setup_vars, cache=FALSE}
 # define what to use and annotate
-cluster_names   = names(em_list)
-n_clusters      = length(em_list)
+group_list  = metadata(qc_obj)$group_list
+n_groups    = metadata(qc_obj)$n_groups
 ```
 
 # Checking for outliers and QC batches via MMD
@@ -37,7 +37,7 @@ _Maximum mean discrepancy_ (MMD) is a measure of dissimilarity of empirical (pos
 Heatmap of all pairwise dissimilarities between samples (values close to 0 indicate similar samples; values of 1 and higher indicate extremely dissimilar samples).
 
 ```{r plot_mmd_distns_heatmap, fig.height=6, fig.width=7}
-(plot_mmd_heatmap(mmd_list))
+(plot_mmd_heatmap(qc_obj))
 ```
 
 ## Plot over UMAP embedding with annotations{.tabset}
@@ -45,8 +45,8 @@ Heatmap of all pairwise dissimilarities between samples (values close to 0 indic
 UMAP embedding of dissimilarity matrix, annotated with selected discrete and continuous values for each sample.
 
 ```{r plot_over_umap, fig.height=4, fig.width=5, results='asis'}
-plot_embeddings(mmd_list, "discrete", "UMAP")
-plot_embeddings(mmd_list, "continuous", "UMAP")
+plot_embeddings(qc_obj, "discrete", "UMAP")
+plot_embeddings(qc_obj, "continuous", "UMAP")
 ```
 
 ## Plot over MDS embedding with annotations{.tabset}
@@ -54,8 +54,8 @@ plot_embeddings(mmd_list, "continuous", "UMAP")
 Multidimensional scaling (MDS) embedding of dissimilarity matrix, annotated with selected discrete and continuous values for each sample.
 
 ```{r plot_over_mds, fig.height=4, fig.width=5, results='asis'}
-plot_embeddings(mmd_list, "discrete", "MDS")
-plot_embeddings(mmd_list, "continuous", "MDS")
+plot_embeddings(qc_obj, "discrete", "MDS")
+plot_embeddings(qc_obj, "continuous", "MDS")
 ```
 
 # Plot `SampleQC` model fits and outliers over QC biaxials
@@ -63,12 +63,14 @@ plot_embeddings(mmd_list, "continuous", "MDS")
 These plots show biaxial distributions of each sample, annotated with both the fitted mean and covariance matrices, and the cells which are then identified as outliers. You can use this to check that you have the correct number of components for each sample grouping, and to check that the fitting procedure has worked properly. The means and covariances of the components should match up to the densest parts of the biaxial plots.
 
 ```{r plot_histograms_split, fig.height=6, fig.width=7, results='asis'}
-for (ii in 1:n_clusters) {
-    cat('## ', cluster_names[ii], '{.tabset}\n')
-    for (s in sort(em_list[[ii]]$sample_list)) {
+for (g in group_list) {
+    cat('## ', g, '{.tabset}\n')
+    # which samples?
+    samples_g   = sort(colData(qc_obj)$sample_id[ colData(qc_obj)$group_id == g ])
+    for (s in samples_g) {
         cat('### ', s, ' \n')
-        g_fit   = plot_fit_over_biaxials_one_sample(em_list[[ii]], qc_dt, s)
-        g_out   = plot_outliers_one_sample(em_list[[ii]], s)
+        g_fit   = plot_fit_over_biaxials_one_sample(qc_obj, s)
+        g_out   = plot_outliers_one_sample(qc_obj, s)
         g       = g_fit / g_out
         print(g)
         cat('\n\n')
@@ -84,11 +86,11 @@ These plots show the fitted parameters for each sample and each mixture componen
 
 Values of $\alpha_j$ which are extreme relative to those for most other samples indicate samples which are either outliers in terms of their QC statistics, or have been allocated to the wrong sample grouping.
 
-```{r outputs_alpha_j_likes, fig.height=9, fig.width=8, results='asis'}
+```{r plot_alpha_j_likes, fig.height=9, fig.width=8, results='asis'}
 # plot likelihoods
-for (i in 1:n_clusters) {
-    cat('### ', cluster_names[i], '\n')
-    print(plot_alpha_js_likelihoods(em_list[[i]]))
+for (g in group_list) {
+    cat('### ', g, '\n')
+    print(plot_alpha_js_likelihoods(qc_obj, g))
     cat('\n\n')
 }
 ```
@@ -97,13 +99,13 @@ These plots show the same $\alpha_j$ values, but as biaxials, and equivalently f
 
 ## $\alpha_j$ PCA values{.tabset}
 
-```{r outputs_alpha_j_pca, fig.height=4, fig.width=10, results='asis'}
-for (i in 1:n_clusters) {
-    cat('### ', cluster_names[i], ' feats\n')
-    print(plot_alpha_js(em_list[[i]], qc_idx=1:2, pc_idx=1:2))
+```{r plot_alpha_j_pca, fig.height=4, fig.width=10, results='asis'}
+for (g in group_list) {
+    cat('### ', g, ' feats\n')
+    print(plot_alpha_js(qc_obj, g, qc_idx=1:2, pc_idx=1:2))
     cat('\n\n')
-    cat('### ', cluster_names[i], ' mito\n')
-    print(plot_alpha_js(em_list[[i]], qc_idx=c(1,3), pc_idx=c(1,3)))
+    cat('### ', g, ' mito\n')
+    print(plot_alpha_js(qc_obj, g, qc_idx=c(1,3), pc_idx=c(1,3)))
     cat('\n\n')
 }
 ```
@@ -112,11 +114,11 @@ These plots show the composition of each sample in terms of the $K$ different mi
 
 ## $\beta_k$ values{.tabset}
 
-```{r outputs_beta_k, fig.height=10, fig.width=6, results='asis'}
+```{r plot_beta_k, fig.height=10, fig.width=6, results='asis'}
 # plot likelihoods
-for (i in 1:n_clusters) {
-    cat('### ', cluster_names[i], '\n')
-    print(plot_beta_ks(em_list[[i]]))
+for (g in group_list) {
+    cat('### ', g, '\n')
+    print(plot_beta_ks(qc_obj, g))
     cat('\n\n')
 }
 ```
