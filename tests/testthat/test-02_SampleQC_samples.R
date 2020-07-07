@@ -36,7 +36,7 @@ test_that("automatic handling of annot_disc, annot_continuous", {
         subsample=20, n_times=5, n_cores=1)
 
     # get right type of output
-    expect_equal(metadata(qc_obj)$annots$disc, c('N_cat', 'mito_cat', 'counts_cat'))
+    expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'N_cat', 'mito_cat', 'counts_cat'))
     expect_equal(metadata(qc_obj)$annots$cont, c('log_N', 'med_mito', 'med_counts'))
 
     # run default
@@ -44,7 +44,7 @@ test_that("automatic handling of annot_disc, annot_continuous", {
         annots_disc=annot_disc, subsample=20, n_times=5, n_cores=1)
 
     # get right type of output
-    expect_equal(metadata(qc_obj)$annots$disc, c('annot_1', 'N_cat', 'mito_cat', 'counts_cat'))
+    expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'annot_1', 'N_cat', 'mito_cat', 'counts_cat'))
     expect_equal(metadata(qc_obj)$annots$cont, c('log_N', 'med_mito', 'med_counts'))
 })
 
