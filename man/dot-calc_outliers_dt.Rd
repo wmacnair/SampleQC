@@ -4,10 +4,10 @@
 \alias{.calc_outliers_dt}
 \title{Calculate outliers for each cell}
 \usage{
-.calc_outliers_dt(em_list, x, groups, alpha)
+.calc_outliers_dt(fit_obj, x, groups, alpha)
 }
 \arguments{
-\item{em_list}{Most of output from .fit_one_sampleQC}
+\item{fit_obj}{Most of output from .fit_one_sampleQC}
 
 \item{x}{Matrix of QC values}
 

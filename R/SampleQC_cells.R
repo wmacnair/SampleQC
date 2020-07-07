@@ -10,10 +10,7 @@
 
 #' Fits `SampleQC` model to one cluster of samples
 #' 
-#' @param mmd_list Outputs from calculate_sample_to_sample_MMDs
-#' @param qc_dt Data.table of QC metrics for all cells and samples
-#' @param qc_names List of metrics to actually use for calculating sample-to-
-#' sample distances
+#' @param qc_obj Output from calculate_sample_to_sample_MMDs
 #' @param K_all,K_list How many QC celltypes do we expect? Exactly one of K_all
 #' and K_list should be specified. If the user wants to fit the same model to 
 #' all samples they should specify `K_all` as an integer. If the user wants to 
@@ -40,35 +37,85 @@
 #' [What difference do mcd parameters make?]
 #' 
 #' @importFrom assertthat assert_that
-#' @importFrom magrittr "%>%" set_rownames set_colnames
+#' @importFrom magrittr "%>%"
 #' @importFrom mclust mclustBIC
 #' @importFrom data.table setkey copy ":="
 #'
 #' @return list, containing MMD values and sample clusters based on MMD values
 #' @export
-fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
-    'logit_mito'), K_all=NULL, K_list=NULL, n_cores, alpha=0.01, em_iters=50, 
-    mcd_alpha=0.5, mcd_iters=50, method=c('robust', 'mle')) {
+fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores, 
+    alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, 
+    method=c('robust', 'mle')) {
     # check some inputs
+    .check_is_qc_obj(qc_obj)
     method      = match.arg(method)
+    fit_params  = .check_fit_params(K_all, K_list, n_cores, 
+        alpha, em_iters, mcd_alpha, mcd_iters, method)
 
+    # decide whether to fit to each sample group individually
+    if (fit_params$do_list) {
+        # split by sample groups
+        df_list     = split.data.frame(colData(qc_obj), 
+            colData(qc_obj)$group_id)
+        # fit each sample group
+        fit_list    = mclapply(
+            seq_along(df_list), 
+            function(i)
+                .fit_one_sampleQC(df_list[[i]], K_list[[i]], fit_params), 
+            mc.cores=fit_params$n_cores)
+        names(fit_list) = metadata(qc_obj)$group_list
+    } else {
+        # fit one model to all samples
+        df          = colData(qc_obj)
+        fit_list    = list(.fit_one_sampleQC(df, K_all, fit_params))
+        names(fit_list) = 'All'
+    }
+
+    # reassemble
+    qc_obj      = .assemble_fit_results(qc_obj, fit_list, fit_params)
+
+    return(qc_obj)
+}
+
+#' Checks that the parameters specified are ok
+#' 
+#' @importFrom assertthat assert_that
+#' @importFrom S4Vectors metadata
+#' 
+#' @keyword internal
+.check_fit_params <- function(K_all, K_list, n_cores, 
+    alpha, em_iters, mcd_alpha, mcd_iters, method) {
     # check specification of type of run is ok
     if (!is.null(K_all) & !is.null(K_list))
         stop('only one of `K_all` and `K_list` should be specified at one 
             time; see ?fit_sampleQC')
-    list_flag   = !is.null(K_list)
+    do_list   = !is.null(K_list)
+
+    # check other parameters are ok
+    assert_that(
+        em_iters == as.integer(em_iters), em_iters > 0,
+        msg     = 'em_iters must be an integer greater than 0')
+    assert_that(
+        mcd_iters == as.integer(mcd_iters), mcd_iters > 0,
+        msg     = 'mcd_iters must be an integer greater than 0')
+    assert_that(
+        alpha > 0, alpha < 1, 
+        msg     = 'alpha must be a values between 0 and 1')
+    assert_that(
+        mcd_alpha > 0, mcd_alpha <= 1, 
+        msg     = 'mcd_alpha must be a values between 0 and 1')
 
     # check specification of number of components is ok for both options
-    if (list_flag) {
-        N_clusts    = length(unique(mmd_list$mmd_clusts))
+    if (do_list) {
+        n_groups    = metadata(qc_obj)$n_groups
         assert_that(
             all.equal(K_list, as.integer(K_list)), 
             all(K_list > 0),
             msg     = 'K_list must be a vector of integers greater than 0')
         assert_that(
-            length(K_list) == N_clusts, 
-            msg     = 'K_list must have the same length as the number of 
-            clusters in the mmd_clusts element of mmd_list')
+            length(K_list) == n_groups, 
+            msg     = paste0('K_list must have the same length as the number of\n',
+                        'clusters in the mmd_clusts element of qc_obj'))
     } else {
         assert_that(
             K_all == as.integer(K_all), 
@@ -76,87 +123,66 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
             msg     = 'K_all must be an integer greater than 0')
     }
     # check inputs
-    if (list_flag) {
+    if (do_list) {
         if (missing(n_cores))
             n_cores     = length(K_list)        
     } else {
         n_cores     = 1
     }
 
-    if (list_flag) {
-        # add clusters to qc_dt
-        clusts_dt   = data.table(
-            sample_id   = rownames(mmd_list$mmd_mat), 
-            QC_clust    = paste0('QC',mmd_list$mmd_clusts)
-            )
-        qc_all      = data.table:::merge.data.table(clusts_dt, qc_dt,
-            by='sample_id')
-
-        # split data
-        qc_dt_list  = split(qc_all, qc_all$QC_clust)
-    } else {
-        # don't split, but put into one list
-        qc_all      = copy(qc_dt) %>% .[, QC_clust := 'All' ]
-        qc_dt_list  = list(All=qc_all)
-        K_list      = K_all
-    }
-
-    # fit each one on different core
-    em_list         = mclapply(seq_along(qc_dt_list), 
-        function(i) .fit_one_sampleQC(
-            qc_dt_list[[i]], qc_names, K_list[[i]], 
-            alpha, em_iters, mcd_alpha, mcd_iters, method
-            ), mc.cores=n_cores)
-    # em_list      = lapply(seq_along(qc_dt_list), 
-    #     function(i) .fit_one_sampleQC(qc_dt_list[[i]], qc_names, 
-    # K_list[[i]], alpha, em_iters, mcd_alpha, mcd_iters, method))
-
-    names(em_list)   = names(qc_dt_list)
+    # assemble
+    fit_params  = list(
+        K_list      = K_list,
+        K_all       = K_all,
+        n_cores     = n_cores,
+        method      = method,
+        alpha       = alpha,
+        em_iters    = em_iters,
+        mcd_iters   = mcd_iters,
+        mcd_alpha   = mcd_alpha,
+        do_list     = do_list
+        )
     
-    return(em_list)
+    return(fit_params)
 }
 
 #' Fits `SampleQC` model to one cluster of samples
 #' 
-#' @param qc_dt Data.table of QC metrics for all cells and samples
-#' @param qc_names List of metrics to actually use for calculating 
-#' sample-to-sample distances
+#' @param df DataFrame with lots of nested things
 #' @param K How many QC celltypes are there?
-#' @param alpha Chi squared threshold to define outliers
-#' @param em_iters Maximum number of EM iterations
-#' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype 
-#' means and covariances
-#' @param method Which of various implemented options should be used?
-#' 
-#' @section Details:
+#' @param fit_params List of parameters specifying the model
 #' 
 #' @importFrom assertthat assert_that
-#' @importFrom magrittr "%>%" set_rownames set_colnames
+#' @importFrom magrittr "%>%"
 #' @importFrom mclust mclustBIC summaryMclustBIC
 #' @importFrom data.table setkey
 #'
 #' @return list, containing lots of cell outlier information
 #' @keywords internal
-.fit_one_sampleQC <- function(qc_dt, qc_names=c('log_counts', 'log_feats', 
-    'logit_mito'), K=1, alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, 
-    method=c('robust', 'mle')) {
-    # checks of inputs
-    # assert_that( is.integer(K) & K>0 )
-    # assert_that( is.integer(em_iters) & em_iters>0 )
-    method      = match.arg(method)
-    assert_that( all(qc_names %in% names(qc_dt)) )
+.fit_one_sampleQC <- function(df, K=1, fit_params) {
+    # unpack inputs
+    alpha       = fit_params$alpha
+    em_iters    = fit_params$em_iters
+    mcd_alpha   = fit_params$mcd_alpha
+    mcd_iters   = fit_params$mcd_iters
+    method      = fit_params$method
 
     # extract x values
-    x           = as.matrix(qc_dt[, qc_names, with=FALSE])
-    rownames(x) = qc_dt$cell_id
+    x           = do.call(rbind, lapply(df$qc_metrics, as.matrix))
+    rownames(x) = unlist(df$cell_id)
+    qc_names    = colnames(x)
 
     # extract group info
-    sample_list = sort(unique(qc_dt$sample_id))
-    groups      = as.integer(factor(qc_dt$sample_id))
+    sample_list = df$sample_id
+    sample_ids  = rep.int(
+        df$sample_id, 
+        vapply(df$cell_id, length, numeric(1))
+        )
+    groups      = as.integer(factor(sample_ids))
     groups_0    = groups - 1
 
     # extract info for cpp code
-    D           = length(qc_names)
+    D           = ncol(x)
     J           = length(sample_list)
     N           = nrow(x)
 
@@ -186,7 +212,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
                 G=K, modelNames=model_spec)$classification-1
         }
         message('running robust EM algorithm')
-        em_obj      = fit_sampleQC_robust_cpp(
+        fit_obj = fit_sampleQC_robust_cpp(
             x, init_z, groups_0, D, J, K, N, 
             em_iters, mcd_alpha, mcd_iters
             )
@@ -201,95 +227,37 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
         }
 
         message('running EM algorithm')
-        em_obj     = fit_sampleQC_mle_cpp(
+        fit_obj = fit_sampleQC_mle_cpp(
             x, init_gamma, groups_0, 
             D, J, K, N, em_iters)
     }
 
     # adjust mu_0, alpha_j and beta_k to have zero means
-    alpha_means     = colMeans(em_obj$alpha_j)
-    beta_means      = colMeans(em_obj$beta_k)
-    em_obj$mu_0     = as.vector(em_obj$mu_0) + alpha_means + beta_means
-    em_obj$alpha_j  = sweep(em_obj$alpha_j, 2, alpha_means, "-")
-    em_obj$beta_k   = sweep(em_obj$beta_k, 2, beta_means, "-")
+    alpha_means     = colMeans(fit_obj$alpha_j)
+    beta_means      = colMeans(fit_obj$beta_k)
+    fit_obj$mu_0    = as.vector(fit_obj$mu_0) + alpha_means + beta_means
+    fit_obj$alpha_j = sweep(fit_obj$alpha_j, 2, alpha_means, "-")
+    fit_obj$beta_k  = sweep(fit_obj$beta_k, 2, beta_means, "-")
 
     # process results
-    em_obj$sample_list  = sample_list
-    em_obj$qc_names     = qc_names
-    for (n in c("llike", "hyper_dt", "metadata"))
-        em_obj[[n]]     = "blank"
-    em_obj$sample_id    = .make_mu_jk_dt(em_obj)
+    fit_obj$sample_list = sample_list
+    fit_obj$sample_id   = sample_ids
+    fit_obj$qc_names    = qc_names
 
     # tidy some stuff
-    em_obj$like_1   = as.vector(em_obj$like_1)
-    em_obj$like_2   = as.vector(em_obj$like_2)
-
-    # extract mu and sigma values
-    setkey(em_obj$sample_id, 'qc_metric')
-    mu_list     = lapply(
-        em_obj$sample_list, function(sel_sample) {
-            lapply(seq_len(em_obj$K), function(k) {
-                temp_dt     = em_obj$sample_id[ (sample_id == sel_sample) & 
-                    (component == k) ]
-                temp_dt     = temp_dt[qc_names]
-                vals        = temp_dt$value %>% setNames(qc_names)
-                return(vals)
-            }) }) %>% setNames(sample_list)
-    sigma_list  = lapply(
-        em_obj$sample_list, function(s) {
-            lapply(seq_len(em_obj$K), function(k) 
-                em_obj$sigma_k[ , , k ] %>% 
-                    set_rownames(qc_names) %>% 
-                    set_colnames(qc_names))
-        }) %>% setNames(sample_list)
-    em_obj$mu_list      = mu_list
-    em_obj$sigma_list   = sigma_list
+    fit_obj$like_1      = as.vector(fit_obj$like_1)
+    fit_obj$like_2      = as.vector(fit_obj$like_2)
 
     # extract outliers
-    em_obj$p_jk_outliers    = .calc_p_jk_proportions(em_obj, x, groups, alpha)
-    em_obj$outliers_dt      = .calc_outliers_dt(em_obj, x, groups, alpha)
-    em_obj$outliers_plot    = .calc_outliers_plot(qc_dt, em_obj)
+    fit_obj$outliers_dt = .calc_outliers_dt(fit_obj, x, groups, alpha)
 
-    return(em_obj)
+    return(fit_obj)
 }
 
-#' Extract parameters from fitted em_obj
+#' DEPRECATED: Calculate proportions of cells within each sample allocated 
+#' to each 
 #' 
-#' @param em_obj Most of output from .fit_one_sampleQC
-#' 
-#' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table ":="
-#'
-#' @return data.table containing fitted parameters
-#' @keywords internal
-.make_mu_jk_dt <- function(em_obj) {
-    qc_names    = em_obj$qc_names
-    mu_0    = data.table(
-        qc_metric   = qc_names, 
-        mu_0        = as.vector(em_obj$mu_0)
-        )
-    alphas  = data.table(
-        qc_metric   = rep(qc_names, each=em_obj$J), 
-        sample_id   = rep(em_obj$sample_list, times=em_obj$D), 
-        alpha_j     = as.vector(em_obj$alpha_j)
-        )
-    betas   = data.table(
-        qc_metric   = rep(qc_names, each=em_obj$K), 
-        component   = rep(seq_len(em_obj$K), times=em_obj$D), 
-        beta_k      = as.vector(em_obj$beta_k)
-        )
-    mu_jk_dt    = data.table:::merge.data.table(alphas, betas,
-        by=c('qc_metric'), allow.cartesian=TRUE) %>% 
-        data.table:::merge.data.table(mu_0,
-            by=c('qc_metric'), allow.cartesian=TRUE) %>% 
-        .[, value := mu_0 + alpha_j + beta_k ] %>%
-        .[, stat := "mean" ]
-    return(mu_jk_dt)
-}
-
-#' Calculate proportions of cells within each sample allocated to each 
-#' 
-#' @param em_obj Most of output from .fit_one_sampleQC
+#' @param fit_obj Most of output from .fit_one_sampleQC
 #' @param x Matrix of QC values
 #' @param groups Sample labels for every cell
 #' @param alpha Chi squared threshold defining outliers
@@ -300,17 +268,17 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 #'
 #' @return data.table containing fitted parameters
 #' @keywords internal
-.calc_p_jk_proportions <- function(em_obj, x, groups, alpha) {
+.calc_p_jk_proportions <- function(fit_obj, x, groups, alpha) {
     # unpack
-    mu_0        = em_obj$mu_0
-    alpha_js    = em_obj$alpha_j
-    beta_ks     = em_obj$beta_k
-    sigma_ks    = em_obj$sigma_k
-    K           = em_obj$K
-    sample_list = em_obj$sample_list
+    mu_0        = fit_obj$mu_0
+    alpha_js    = fit_obj$alpha_j
+    beta_ks     = fit_obj$beta_k
+    sigma_ks    = fit_obj$sigma_k
+    K           = fit_obj$K
+    sample_list = fit_obj$sample_list
 
     # calc maha distance threshold for relevant chi-squared distn
-    ndims       = length(em_obj$qc_names)
+    ndims       = length(fit_obj$qc_names)
     maha_cut    = qchisq(1 - alpha, df=ndims)
 
     # loop through groups
@@ -361,29 +329,28 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
 
 #' Calculate outliers for each cell
 #' 
-#' @param em_obj Most of output from .fit_one_sampleQC
+#' @param fit_obj Most of output from .fit_one_sampleQC
 #' @param x Matrix of QC values
 #' @param groups Sample labels for every cell
 #' @param alpha Chi squared threshold defining outliers
 #' 
-#' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table setnames ":="
+#' @importFrom magrittr "%>%" set_colnames
+#' @importFrom data.table data.table ":="
 #' @importFrom matrixStats rowMins
 #'
 #' @return data.table containing fitted parameters
 #' @keywords internal
-.calc_outliers_dt <- function(em_obj, x, groups, alpha) {
+.calc_outliers_dt <- function(fit_obj, x, groups, alpha) {
     # unpack
-    mu_0        = em_obj$mu_0
-    alpha_js    = em_obj$alpha_j
-    beta_ks     = em_obj$beta_k
-    sigma_ks    = em_obj$sigma_k
-    K           = em_obj$K
-    sample_list = em_obj$sample_list
+    mu_0        = fit_obj$mu_0
+    alpha_js    = fit_obj$alpha_j
+    beta_ks     = fit_obj$beta_k
+    sigma_ks    = fit_obj$sigma_k
+    K           = fit_obj$K
+    sample_list = fit_obj$sample_list
 
     # calc maha distance threshold for relevant chi-squared distn
-    ndims       = length(em_obj$qc_names)
-    maha_cut    = qchisq(1 - alpha, df=ndims)
+    maha_cut    = qchisq(1 - alpha, df=fit_obj$D)
 
     # centre x by alpha_js
     x_centred   = sweep(x, 2, mu_0, "-") - alpha_js[groups, ]
@@ -401,7 +368,7 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
     # put together into data.table
     maha_names  = paste0('maha_', seq_len(K))
     outliers_dt = data.table(maha_mat) %>%
-        setnames(names(.), maha_names) %>%
+        set_colnames(maha_names) %>%
         .[, cell_id     := rownames(x) ] %>%
         .[, sample_id   := sample_list[groups] ] %>%
         .[, outlier     := maha_mins > maha_cut ]
@@ -409,61 +376,130 @@ fit_sampleQC <- function(mmd_list, qc_dt, qc_names=c('log_counts', 'log_feats',
     return(outliers_dt)
 }
 
-#' Make data.table for plotting outliers over QC metrics
+#' Puts results from fitting models into SingleCellExperiment format
 #' 
-#' @param qc_dt data.table of QC metrics
-#' @param em_obj Most of output from .fit_one_sampleQC
+#' @importFrom S4Vectors metadata "metadata<-"
+#' @importFrom SummarizedExperiment "colData<-"
+#' @importFrom assertthat assert_that
 #' 
-#' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table
-#' @importFrom data.table melt
-#' @importFrom data.table setnames
-#'
-#' @return data.table containing fitted parameters
+#' @return qc_obj with things added
 #' @keywords internal
-.calc_outliers_plot <- function(qc_dt, em_obj) {
-    outliers_dt = em_obj$outliers_dt
-    qc_names    = em_obj$qc_names
-    outliers_plot   = outliers_dt[, list(cell_id, sample_id, outlier)] %>%
-        data.table:::merge.data.table(
-            qc_dt[, c('cell_id', qc_names), with=FALSE], on='cell_id'
-            ) %>%
-        melt(
-            id      = c('cell_id', 'sample_id', 'outlier', qc_names[[1]]),
-            measure = qc_names[-1], 
-            variable.name='qc_x_name', value.name='qc_x'
-            ) %>%
-        setnames(qc_names[[1]], 'qc_y')
-    return(outliers_plot)
+.assemble_fit_results <- function(qc_obj, fit_list, fit_params) {
+    # put everything in metadata as lazy storage
+    metadata(qc_obj)$fit_list   = fit_list
+    metadata(qc_obj)$fit_params = fit_params
+
+    # set up dummy columns
+    n_samples   = nrow(colData(qc_obj))
+    D           = metadata(qc_obj)$D
+    colData(qc_obj)$K           = numeric(n_samples)
+    colData(qc_obj)$mu_0        = 
+        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples)
+    colData(qc_obj)$alpha_j     = 
+        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples)
+    colData(qc_obj)$beta_k      = 
+        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples)
+    colData(qc_obj)$sigma_k     = 
+        rep(list(matrix(NA, nrow=D, ncol=D)), n_samples)
+    colData(qc_obj)$p_jk        = 
+        rep(list(matrix(NA, nrow=1, ncol=1)), n_samples)
+    colData(qc_obj)$z           = 
+        rep(list(factor(NA)), n_samples)
+    colData(qc_obj)$outlier     = 
+        rep(list(factor(NA)), n_samples)
+
+    # loop through fitted models
+    for (ii in seq_along(fit_list)) {
+        # which samples to update?
+        if ( fit_params$do_list == TRUE ) {
+            # if we fit to each group, do this group
+            g       = names(fit_list)[[ii]]
+            g_idx   = qc_obj$group_id == g
+        } else {
+            # otherwise update everything
+            g_idx   = rep(TRUE, ncol(qc_obj))
+        }
+        # how many here?
+        n_ii    = sum(g_idx)
+
+        # get this fit_obj
+        fit_obj = fit_list[[ii]]
+
+        # add K
+        colData(qc_obj)$K[g_idx] = 
+            rep(fit_obj$K, n_ii)
+        # add mu_0
+        colData(qc_obj)$mu_0[g_idx] = 
+            rep(list(matrix(fit_obj$mu_0, nrow=1)), n_ii)
+        # add alpha_j
+        colData(qc_obj)$alpha_j[g_idx] = 
+            asplit(fit_obj$alpha_j, 1) %>% 
+            lapply(matrix, nrow=1)
+        # add beta_k
+        colData(qc_obj)$beta_k[g_idx] = 
+            rep(list(fit_obj$beta_k), n_ii)
+        # add sigma_k
+        colData(qc_obj)$sigma_k[g_idx] = 
+            rep(list(fit_obj$sigma_k), n_ii)
+        # add p_jk
+        colData(qc_obj)$p_jk[g_idx] = 
+            asplit(fit_obj$p_jk, 1)
+        # add z
+        colData(qc_obj)$z[g_idx] = 
+            split(as.vector(fit_obj$z), fit_obj$sample_id)
+        # add outliers
+        colData(qc_obj)$outlier[g_idx] = 
+            split(fit_obj$outliers_dt, fit_obj$sample_id)
+    }
+
+    # check it worked ok
+    assert_that( .check_is_qc_obj(qc_obj) == 'fit', 
+        msg="fit didn't work somehow" )
+
+    return(qc_obj)
 }
 
 #' Plots inferred sample-level statistics over QC biaxials
 #'
-#' @param qc_dt data.table of QC metrics
-#' @param fit_obj fit_obj object from function fit_qc_model
-#' @param fit_list list of fit_obj objects (for comparing multiple models)
-#' @param sel_sample which sample to plot?
-#' @param qc_names list of metrics to be plotted (first is used for y axis)
-#' @param alpha_cut contour value for ellipses
-#' @importFrom magrittr "%>%"
-#' @importFrom data.table ":=" setnames rbindlist dcast
+#' @param qc_obj Output from function fit_sampleQC
+#' @param sel_sample Which sample to plot?
+#' @param qc_names List of metrics to be plotted (first is used for y axis).
+#' Default is to use the qc_names specified in metadata(qc_obj)$qc_names; this
+#' option is included to allow for "zooming in" on a subset, or changing the 
+#' order in which they are plotted.
+#' @param alpha_cut Chi-squared quantile to determine how large the ellipses
+#' should be.
+#' 
+#' @importFrom assertthat assert_that
+#' @importFrom SummarizedExperiment colData
+#' @importFrom magrittr "%>%" set_colnames
+#' @importFrom data.table ":=" setnames rbindlist data.table melt
 #' @importFrom ggplot2 ggplot aes geom_bin2d geom_path geom_point
 #' @importFrom ggplot2 scale_x_continuous scale_y_continuous scale_shape_manual
 #' @importFrom ggplot2 scale_linetype_manual scale_fill_distiller
 #' @importFrom ggplot2 coord_cartesian facet_grid theme_bw theme labs
 #' @importFrom scales pretty_breaks
+#' 
 #' @return ggplot object
 #' @export
-plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample, 
+plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample, 
     qc_names=NULL, alpha_cut=0.01) {
-    # if qc_names not specified, use those in sample
-    if (is.null(qc_names))
-        qc_names    = fit_obj$qc_names
+    # can we do this?
+    assert_that(
+        .check_is_qc_obj(qc_obj) == 'fit',
+        msg='SampleQC model must be fit (via `fit_sampleQC`) before calling 
+        this function')
 
-    # get points
+    # expect to use qc_names specified in qc_obj; qc_names parameter here
+    # allows zooming in on subset of qc metrics used
+    if (is.null(qc_names))
+        qc_names    = metadata(qc_obj)$qc_names
+
+    # get data for cells
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]
-    points_dt   = qc_dt[ sample_id == sel_sample ] %>%
+    points_dt   = colData(qc_obj)$qc_metrics[[sel_sample]] %>%
+        .[, cell_id := colData(qc_obj)$cell_id[[sel_sample]] ] %>%
         melt(
             id      = c('cell_id', qc_1), 
             measure = qc_not_1,
@@ -476,16 +512,20 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
         2:length(qc_names),
         function(jj) 
             .calc_ellipses_dt(
-                fit_obj, sel_sample, 1, jj, 
+                qc_obj, sel_sample, 1, jj, 
                 qc_names[[jj]], alpha=alpha_cut
                 )
         ) %>% rbindlist
 
     # extract means
-    means_dt    = fit_obj$sample_id[
-        (stat == 'mean') & (sample_id == sel_sample)
-        ] %>%
-        dcast(component ~ qc_metric, value.var='value') %>%
+    mu_0        = colData(qc_obj)[sel_sample, 'mu_0'][[1]]
+    alpha_j     = colData(qc_obj)[sel_sample, 'alpha_j'][[1]]
+    beta_k      = colData(qc_obj)[sel_sample, 'beta_k'][[1]]
+    sigma_k     = colData(qc_obj)[sel_sample, 'sigma_k'][[1]]
+    means_dt    = sweep(beta_k, 2, mu_0 + alpha_j, '+') %>%
+        data.table %>%
+        set_colnames(qc_names) %>%
+        .[, component := 1:.N] %>%
         melt(id=c('component', qc_1), 
             variable.name='other_qc', value.name='qc_x') %>%
         setnames(qc_1, 'qc_y')
@@ -504,18 +544,15 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
     # plot
     g = ggplot() + 
         aes(y=qc_y, x=qc_x) +
-        geom_bin2d(data=points_dt) +
-        geom_path(
-            data    = ellipses_dt[ sample_id == sel_sample ],
-            aes(group=component)
-            ) +
-        geom_point(data=means_dt, size=3) +
+        geom_bin2d( data=points_dt ) +
+        geom_path( data=ellipses_dt, aes(group=component) ) +
+        geom_point( data=means_dt, size=3) +
         scale_x_continuous( breaks=pretty_breaks() ) + 
         scale_y_continuous( breaks=pretty_breaks() ) +
-        coord_cartesian( ylim=y_range ) +
         scale_shape_manual( values=c(1, 16) ) +
         scale_linetype_manual( values=c('dashed', 'solid') ) +
         scale_fill_distiller( palette='RdBu', trans='log10' ) +
+        coord_cartesian( ylim=y_range ) +
         facet_grid( . ~ other_qc, scales='free_x' ) +
         theme_bw() + 
         # theme( aspect.ratio=1 ) +
@@ -527,37 +564,46 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
 
 #' Calculates path for an ellipse based on 2D mu and sigma values
 #'
-#' @param fit_obj fit_obj object from function fit_qc_model
-#' @param dim1 dimension to use
-#' @param dim2 dimension to use
-#' @param alpha contour threshold
+#' @param qc_obj Output from function fit_sampleQC
+#' @param sel_sample Which sample?
+#' @param dim1,dim2 Dimensions to use
+#' @param dim2_name Name of second dimension
+#' @param alpha Chi-squared quantile to use for ellipse sizes
+#' 
+#' @importFrom SummarizedExperiment colData
 #' @importFrom magrittr "%>%"
 #' @importFrom data.table data.table rbindlist ":="
+#' 
 #' @return data.table object
 #' @keywords internal
-.calc_ellipses_dt <- function(fit_obj, sel_sample, dim1, dim2, 
+.calc_ellipses_dt <- function(qc_obj, sel_sample, dim1, dim2, 
     dim2_name, alpha=0.01) {
-    # extract data from fit_obj
-    mus     = fit_obj$mu_list
-    sigmas  = fit_obj$sigma_list
-    n_comps = length(mus[[1]])
+    # extract data from qc_obj
+    K           = colData(qc_obj)[sel_sample, 'K']
+    mu_0        = colData(qc_obj)[sel_sample, 'mu_0'][[1]]
+    alpha_j     = colData(qc_obj)[sel_sample, 'alpha_j'][[1]]
+    beta_k      = colData(qc_obj)[sel_sample, 'beta_k'][[1]]
+    sigma_k     = colData(qc_obj)[sel_sample, 'sigma_k'][[1]]
 
-    # check that we have valid values
-    this_m  = mus[[ sel_sample ]]
-    if ( is.null(this_m) )
-        return(NULL)
+    # add together into means
+    mus         = sweep(beta_k, 2, mu_0 + alpha_j, '+')
+
+    # # check that we have valid values
+    # this_m  = mus[[ sel_sample ]]
+    # if ( is.null(this_m) )
+    #     return(NULL)
 
     # specify dimensions to use
-    sel_idx = c(dim1, dim2)
+    sel_idx     = c(dim1, dim2)
 
     # go through samples and components
     ellipses_dt = lapply(
-        seq_len(n_comps),
-        function(c) .calc_one_ellipse(
-            as.vector(mus[[sel_sample]][[c]][sel_idx]), 
-            sigmas[[sel_sample]][[c]][sel_idx, sel_idx], 
-            alpha, c, sel_sample
-            )
+        seq_len(K),
+        function(k) .calc_one_ellipse(
+            mus[k, sel_idx], 
+            sigma_k[sel_idx, sel_idx, k], 
+            alpha
+            ) %>% .[, component := k ]
         ) %>% rbindlist %>% .[, other_qc := dim2_name ]
 
     return(ellipses_dt)
@@ -568,45 +614,61 @@ plot_fit_over_biaxials_one_sample <- function(fit_obj, qc_dt, sel_sample,
 #' @param mu mean vector
 #' @param sigma covariance matrix
 #' @param alpha contour threshold
-#' @param c component
-#' @param s sample
+#' 
 #' @importFrom magrittr "%>%"
 #' @importFrom mixtools ellipse
 #' @importFrom data.table data.table setnames ":="
+#' 
 #' @return data.table object
 #' @keywords internal
-.calc_one_ellipse <- function(mu, sigma, alpha, c, s) {
+.calc_one_ellipse <- function(mu, sigma, alpha) {
     ell = ellipse(mu, sigma, alpha=alpha, draw=FALSE)
     dt  = data.table(ell) %>%
-        setnames(., names(.), c('qc_y', 'qc_x')) %>%
-        .[, component  := c] %>%
-        .[, sample_id  := s]
+        setnames(., names(.), c('qc_y', 'qc_x'))
     return(dt)
 }
 
 #' Calculates path for an ellipse based on 2D mu and sigma values
 #'
-#' @param em_obj Output from .fit_one_sampleQC
-#' @param s Selected sample
+#' @param qc_obj Output from function fit_sampleQC
+#' @param sel_sample Selected sample
 #'
+#' @importFrom S4Vectors metadata
+#' @importFrom SummarizedExperiment colData
+#' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
 #' @importFrom data.table ":=" setnames rbindlist dcast
 #' @importFrom ggplot2 ggplot aes geom_point
 #' @importFrom ggplot2 scale_x_continuous scale_y_continuous
 #' @importFrom ggplot2 facet_grid theme_bw theme labs
 #' @importFrom scales pretty_breaks
+#' 
 #' @return ggplot object
 #' @export
-plot_outliers_one_sample <- function(em_obj, s) {
-    # unpack
-    qc_names    = em_obj$qc_names
-    dt          = em_obj$outliers_plot[ sample_id == s ]
+plot_outliers_one_sample <- function(qc_obj, sel_sample) {
+    # unpack, arrange
+    qc_names    = metadata(qc_obj)$qc_names
+    qc_1        = qc_names[[1]]
+    qc_not_1    = qc_names[-1]
+    qc_sel      = colData(qc_obj)$qc_metrics[[sel_sample]]
+    outlier_sel = colData(qc_obj)[sel_sample, 'outlier'][[1]][, 
+        c('cell_id', 'outlier'), with=FALSE]
+    assert_that( all( qc_sel$cell_id == outlier_sel$cell_id ) )
+
+    # join together
+    plot_dt     = cbind(qc_sel, outlier=outlier_sel$outlier) %>%
+        melt(
+            id      = c('cell_id', 'outlier', qc_1), 
+            measure = qc_not_1,
+            variable.name='qc_x_name', value.name='qc_x'
+            ) %>%
+        setnames(qc_1, 'qc_y')
 
     # plot
     g   = ggplot() + 
         aes(y=qc_y, x=qc_x, colour=outlier) +
-        geom_point(data=dt[outlier == FALSE], size=2, colour='grey' ) +
-        geom_point(data=dt[outlier == TRUE],  size=2, colour='red' ) +
+        geom_point(data=plot_dt[outlier == FALSE], size=1, colour='grey' ) +
+        geom_point(data=plot_dt[outlier == TRUE],  size=1, colour='red' ) +
         scale_x_continuous( breaks=pretty_breaks() ) + 
         scale_y_continuous( breaks=pretty_breaks() ) +
         facet_grid( . ~ qc_x_name, scales='free_x' ) +
@@ -619,8 +681,13 @@ plot_outliers_one_sample <- function(em_obj, s) {
 
 #' Plots inferred sample-level statistics, with empirical log-likelihood
 #'
-#' @param fit_obj fit_obj object from function fit_qc_model
+#' @param qc_obj Output from function fit_sampleQC
+#' @param sel_group Which sample group to plot
 #' @param df degrees of freedom for multivariate t
+#' 
+#' @importFrom S4Vectors metadata
+#' @importFrom SummarizedExperiment colData
+#' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
 #' @importFrom data.table data.table ":=" setnames melt
 #' @importFrom forcats fct_reorder
@@ -631,14 +698,26 @@ plot_outliers_one_sample <- function(em_obj, s) {
 #' @importFrom ggplot2 theme_bw theme labs element_blank
 #' @importFrom scales pretty_breaks
 #' @importFrom patchwork plot_layout
+#' 
 #' @return ggplot object
 #' @export
-plot_alpha_js_likelihoods <- function(fit_obj, df=5) {
+plot_alpha_js_likelihoods <- function(qc_obj, sel_group, df=5) {
+    # unpack
+    qc_names    = metadata(qc_obj)$qc_names
+    g_idx       = colData(qc_obj)$group_id == sel_group
+    samples     = colData(qc_obj)$sample_id[g_idx]
+    mu_0        = do.call(rbind, colData(qc_obj)$mu_0[g_idx])
+    alpha_j     = do.call(rbind, colData(qc_obj)[g_idx, 'alpha_j'])
+
+    # some checks
+    assert_that( all( dim(mu_0) == dim(alpha_j) ),
+        msg='mu_0 and alpha_j should have the same dimensions')
+
     # extract values
-    alphas_dt   = data.table(sweep(fit_obj$alpha_j, 2, fit_obj$mu_0, "+")) %>%
-        setnames(names(.), fit_obj$qc_names) %>% 
-        .[, sample_id := fit_obj$sample_list ] %>%
-        .[, sample_id := fct_reorder(sample_id, -fit_obj$alpha_j[, 1]) ] %>%
+    alphas_dt   = data.table(mu_0 + alpha_j) %>%
+        set_colnames(qc_names) %>% 
+        .[, sample_id := samples ] %>%
+        .[, sample_id := fct_reorder(sample_id, -alpha_j[, 1]) ] %>%
         melt(
             id='sample_id', 
             variable.name='qc_metric', value.name='qc_value'
@@ -646,7 +725,7 @@ plot_alpha_js_likelihoods <- function(fit_obj, df=5) {
         .[, scaled_qc := scale(qc_value), by='qc_metric' ]
 
     # max value
-    max_val  = ceiling(10*max(abs(alphas_dt$scaled_qc)))/10
+    max_val     = ceiling(10*max(abs(alphas_dt$scaled_qc)))/10
 
     # make plot
     g_alphas    = ggplot(alphas_dt) +
@@ -654,8 +733,7 @@ plot_alpha_js_likelihoods <- function(fit_obj, df=5) {
             x=qc_metric, y=sample_id, fill=scaled_qc,
             label=sprintf("%0.2f", round(qc_value, digits = 2))
             ) +
-        geom_tile() +
-        geom_text() +
+        geom_tile() + geom_text() +
         scale_fill_distiller(
             palette='RdBu', limits=c(-max_val,max_val),
             breaks=pretty_breaks()
@@ -667,17 +745,13 @@ plot_alpha_js_likelihoods <- function(fit_obj, df=5) {
         theme_bw()
 
     # fit robust multivariate t to alpha values, extract likelihoods
-    alpha_mat   = fit_obj$alpha_j
-    fit_robt    = cov.trob(alpha_mat, cor=TRUE, nu=df)
-    mu          = fit_robt$center
-    cov_mat     = fit_robt$cov
-    llikes      = dmvt(alpha_mat, mu=mu, sigma=cov_mat, df=df, log=TRUE)
+    fit_robt    = cov.trob(alpha_j, cor=TRUE, nu=df)
+    llikes      = dmvt(alpha_j, 
+        mu=fit_robt$center, sigma=fit_robt$cov, 
+        df=df, log=TRUE)
     likes_dt    = data.table(
         loglike     = llikes,
-        sample_id   = factor(
-            fit_obj$sample_list,
-            levels  = levels(alphas_dt$sample_id)
-            )
+        sample_id   = factor(samples, levels=levels(alphas_dt$sample_id))
         )
 
     # plot likelihoods
@@ -699,50 +773,60 @@ plot_alpha_js_likelihoods <- function(fit_obj, df=5) {
 
 #' Plots inferred sample-level statistics, with empirical log-likelihood
 #'
-#' @param fit_obj fit_obj object from function fit_qc_model
+#' @param qc_obj Output from function fit_sampleQC
+#' @param sel_group Which sample group to plot
 #' @param df degrees of freedom for multivariate t
-#' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table ":=" setnames melt
-#' @importFrom forcats fct_reorder
+#' 
+#' @importFrom S4Vectors metadata
+#' @importFrom SummarizedExperiment colData
+#' @importFrom magrittr "%>%" set_colnames
+#' @importFrom data.table data.table ":="
 #' @importFrom MASS cov.trob
-#' @importFrom mixtools ellipse
 #' @importFrom mvnfast dmvt
+#' @importFrom mixtools ellipse
 #' @importFrom ggplot2 ggplot aes_string geom_point geom_path
 #' @importFrom ggplot2 scale_fill_distiller theme_bw theme labs
 #' @importFrom scales pretty_breaks
 #' @importFrom patchwork plot_layout
+#' 
 #' @return ggplot object
 #' @export
-plot_alpha_js <- function(fit_obj, df=5, qc_idx=c(1,2), pc_idx=c(1,2)) {
+plot_alpha_js <- function(qc_obj, sel_group, df=5, qc_idx=c(1,2), pc_idx=c(1,2)) {
+    # unpack
+    qc_names    = metadata(qc_obj)$qc_names
+    D           = metadata(qc_obj)$D
+    g_idx       = colData(qc_obj)$group_id == sel_group
+    samples     = colData(qc_obj)$sample_id[g_idx]
+    mu_0        = do.call(rbind, colData(qc_obj)$mu_0[g_idx])
+    alpha_j     = do.call(rbind, colData(qc_obj)[g_idx, 'alpha_j'])
+
     # fit robust multivariate t to alpha values, extract likelihoods
-    alpha_mat   = fit_obj$alpha_j
-    fit_robt    = cov.trob(alpha_mat, cor=TRUE, nu=df)
+    fit_robt    = cov.trob(alpha_j, cor=TRUE, nu=df)
     mu          = fit_robt$center
     cov_mat     = fit_robt$cov
-    llikes      = dmvt(alpha_mat, mu=mu, sigma=cov_mat, df=df, log=TRUE)
+    llikes      = dmvt(alpha_j, mu=mu, sigma=cov_mat, df=df, log=TRUE)
 
     # get PCs from covariance matrix
     cov_eigen   = eigen(cov_mat)
-    pc_scores   = sweep(alpha_mat, 2, mu, "-") %*% cov_eigen$vectors
+    pc_scores   = sweep(alpha_j, 2, fit_robt$center, "-") %*% 
+        cov_eigen$vectors
     std_devs    = sqrt(cov_eigen$values)
 
     # put together into dt
-    qc_names    = fit_obj$qc_names
-    n_qcs       = length(qc_names)
     plot_dt     = data.table(pc_scores) %>%
-        setnames(names(.), paste0('PC', seq_len(n_qcs))) %>%
-        .[, (qc_names) := asplit(alpha_mat, 2) ] %>%
-        .[, sample_id := fit_obj$sample_list] %>%
+        set_colnames(paste0('PC', seq_len(D))) %>%
+        .[, (qc_names) := asplit(alpha_j, 2) ] %>%
+        .[, sample_id := samples] %>%
         .[, loglike   := llikes ]
 
     # make ellipse
     alpha       = 0.05
     ellipse_std = data.table(
         ellipse(mu[qc_idx], cov_mat[qc_idx, qc_idx], alpha=alpha, draw=FALSE)
-        ) %>% setnames(names(.), qc_names[qc_idx])
+        ) %>% set_colnames(qc_names[qc_idx])
     ellipse_pca = data.table(
         ellipse(rep(0,2), diag(std_devs[pc_idx]^2), alpha=alpha, draw=FALSE)
-        ) %>% setnames(names(.), paste0('PC', pc_idx))
+        ) %>% set_colnames(paste0('PC', pc_idx))
 
     # plot
     g_std = ggplot() +
@@ -784,9 +868,14 @@ plot_alpha_js <- function(fit_obj, df=5, qc_idx=c(1,2), pc_idx=c(1,2)) {
 
 #' Plots estimates of cluster splits by sample, with KL divergence from mean
 #'
-#' @param fit_obj fit_obj object from function fit_qc_model
+#' @param qc_obj Output from function fit_sampleQC
+#' @param sel_group Which sample group to plot
+#' 
+#' @importFrom S4Vectors metadata
+#' @importFrom SummarizedExperiment colData
+#' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table ":=" setnames melt
+#' @importFrom data.table data.table ":=" setnames melt copy
 #' @importFrom forcats fct_reorder
 #' @importFrom MASS cov.trob
 #' @importFrom mvnfast dmvt
@@ -794,64 +883,79 @@ plot_alpha_js <- function(fit_obj, df=5, qc_idx=c(1,2), pc_idx=c(1,2)) {
 #' @importFrom ggplot2 theme_bw theme labs element_blank
 #' @importFrom scales pretty_breaks
 #' @importFrom patchwork plot_layout
+#' 
 #' @return ggplot object
 #' @export
-plot_beta_ks <- function(fit_obj) {
+plot_beta_ks <- function(qc_obj, sel_group) {
     # unpack
-    if (is.null(fit_obj$p_k)) {
-        p_k     = colMeans(fit_obj$p_jk)
-    } else {
-        p_k     = as.vector(fit_obj$p_k)
-    }
-    p_jk        = fit_obj$p_jk
-    sample_list = fit_obj$sample_list
+    g_idx       = colData(qc_obj)$group_id == sel_group
+    alpha_j     = do.call(rbind, colData(qc_obj)$alpha_j[g_idx])
+    sample_list = colData(qc_obj)$sample_id[ g_idx ]
+    sample_ord  = sample_list[order(-alpha_j[,1])]
+    z           = do.call(c, colData(qc_obj)$z[g_idx])
+    outliers    = do.call(rbind, colData(qc_obj)$outlier[g_idx])
+
+    # some checks
+    assert_that( nrow(outliers) == length(z),
+        msg="outliers and z don't match up :/" )
+
+    # put dt together
+    outliers_dt = copy(outliers) %>%
+        .[, sample_id := factor(sample_id, levels=sample_ord)] %>%
+        .[, z := paste0(sel_group, '.', z) ] %>%
+        .[, cluster := z] %>%
+        .[ outlier == TRUE, cluster := 'out']
+
+    # calculate proportions
+    p_jk_dt     = outliers_dt[, .N, by=c('sample_id', 'z')] %>% 
+        .[, sum_j   := sum(N), by='sample_id' ] %>%
+        .[, p_jk    := N / sum_j ] %>%
+        .[, p_jk_label := sprintf("%0.2f", round(p_jk, digits = 2)) ]
+    p_k_dt      = outliers_dt[, .N, by='z'] %>% 
+        .[, total := sum(N) ] %>%
+        .[, p_k := N / total ] %>%
+        setorder('z')
+    p_k         = p_k_dt$p_k
+
+    # make into matrix
+    p_jk_mat    = dcast(p_jk_dt, sample_id ~ z, value.var='p_jk') %>%
+        .[, -'sample_id'] %>% 
+        as.matrix
 
     # define KL divergence fn
     kl_fn   <- function(Q) 
         sum(p_k * (log2(p_k) - log2(Q)))
 
     # make data.table with kl vals in
-    sample_ord  = sample_list[order(-fit_obj$alpha_j[,1])]
     kl_dt       = data.table(
-        sample_id = factor(fit_obj$sample_list, levels=sample_ord),
-        kl = apply(fit_obj$p_jk, 1, kl_fn)
+        sample_id   = factor(sample_list, levels=sample_ord),
+        kl          = apply(p_jk_mat, 1, kl_fn)
         )
 
     # extract p_jk values
-    p_jks_dt    = data.table(fit_obj$p_jk) %>% 
-        setnames(names(.), paste0('C', seq_len(fit_obj$K))) %>% 
+    diffs_dt    = data.table(sweep(p_jk_mat, 2, p_k, "-")) %>% 
         .[, sample_id := factor(sample_list, levels=sample_ord) ] %>%
         melt(
-            id='sample_id', variable.name='component',
-            value.name='cluster_prop'
-            )
-    diffs_dt    = data.table(sweep(p_jk, 2, p_k, "-")) %>% 
-        setnames(names(.), paste0('C', seq_len(fit_obj$K))) %>% 
-        .[, sample_id := factor(sample_list, levels=sample_ord) ] %>%
-        melt(
-            id='sample_id', variable.name='component', 
+            id='sample_id', variable.name='z', 
             value.name='cluster_delta'
             )
-    p_jks_dt    = diffs_dt[ p_jks_dt, on=c('sample_id', 'component')]
+    p_jk_dt     = data.table:::merge.data.table(
+        diffs_dt, p_jk_dt, by=c('sample_id', 'z')
+        )
 
     # find limits for deltas
     delta_lim   = ceiling(max(abs(diffs_dt$cluster_delta))*10)/10
 
     # extract outlier proportions
-    outliers_dt = data.table(
-        sample_id   = factor(sample_list, levels=sample_ord),
-        out_prop    = fit_obj$p_jk_outliers[, 'outlier'] / 
-            rowSums(fit_obj$p_jk_outliers)
-        )
+    outs_dt     = outliers_dt[, .(outs=sum(outlier), total=.N), 
+        by=c('sample_id')] %>%
+        .[, out_prop := outs / total ] %>%
+        .[, out_label := sprintf("%0.3f", round(out_prop, digits = 3))]
 
     # make plot
-    g_pjks  = ggplot(p_jks_dt) +
-        aes(
-            x=component, y=sample_id, fill=cluster_delta, 
-            label=sprintf("%0.2f", round(cluster_prop, digits = 2))
-            ) +
-        geom_tile() +
-        geom_text() +
+    g_pjks  = ggplot(p_jk_dt) +
+        aes(x=z, y=sample_id, fill=cluster_delta, label=p_jk_label) +
+        geom_tile() + geom_text() +
         scale_fill_distiller(
             palette='RdBu', breaks=pretty_breaks(),
             limits=c(-delta_lim, delta_lim)
@@ -863,13 +967,9 @@ plot_beta_ks <- function(fit_obj) {
         theme_bw() + theme( legend.position='bottom', legend.direction='vertical' )
 
     # make plot
-    g_outs  = ggplot(outliers_dt) +
-        aes(
-            x="", y=sample_id, fill=out_prop, 
-            label=sprintf("%0.3f", round(out_prop, digits = 3))
-            ) +
-        geom_tile() +
-        geom_text() +
+    g_outs  = ggplot(outs_dt) +
+        aes( x="", y=sample_id, fill=out_prop, label=out_label ) +
+        geom_tile() + geom_text() +
         scale_fill_distiller(
             palette='BuPu', direction=1,
             breaks=pretty_breaks()
@@ -886,20 +986,15 @@ plot_beta_ks <- function(fit_obj) {
     g_kl    = ggplot(kl_dt) +
         aes( x="", y=sample_id, fill=kl ) +
         geom_tile() +
-        scale_fill_distiller(
-            palette='PiYG', direction=-1, 
+        scale_fill_distiller(palette='PiYG', direction=-1,
             breaks=pretty_breaks()
             ) +
         expand_limits( fill=0 ) +
-        labs(
-            x=NULL, y=NULL, 
-            fill='KL divergence\nfrom mean\nproportion\n'
-            ) +
+        labs(x=NULL, y=NULL,
+            fill='KL divergence\nfrom mean\nproportion\n') +
         theme_bw() + 
-        theme(
-            legend.position='bottom', legend.direction='vertical', 
-            axis.text.y=element_blank()
-            )
+        theme(legend.position='bottom', legend.direction='vertical',
+            axis.text.y=element_blank())
 
     # assemble via patchwork
     g = g_pjks + g_outs + g_kl + plot_layout( widths=c(5, 2, 2) )

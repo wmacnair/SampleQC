@@ -2,32 +2,16 @@
 % Please edit documentation in R/SampleQC_samples.R
 \name{plot_mmd_heatmap}
 \alias{plot_mmd_heatmap}
-\title{Calculates non-linear embeddings of MMD distances calculated by
-calculate_sample_to_sample_MMDs}
+\title{Plots heatmap of sample-sample distances (as measured by MMD)}
 \usage{
-plot_mmd_heatmap(mmd_list)
+plot_mmd_heatmap(qc_obj)
 }
 \arguments{
-\item{mmd_list}{Outputs from function calculate_sample_to_sample_MMDs}
-
-\item{qc_dt}{Data.table of QC metrics for all cells and samples}
-
-\item{annot_discrete}{List of discrete-valued variables to plot later}
-
-\item{annot_cont}{List of continuous-valued variables to plot later}
-
-\item{n_nhbrs}{How many neighbours in UMAP nearest neighbours graph}
+\item{qc_obj}{Outputs from function calculate_sample_to_sample_MMDs}
 }
 \value{
 ggplot object
 }
 \description{
-Calculates non-linear embeddings of MMD distances calculated by
-calculate_sample_to_sample_MMDs
+Plots heatmap of sample-sample distances (as measured by MMD)
 }
-\section{Details}{
-
-\link{Maximum mean discrepancy (MMD) }
-\link{Why to centre and not scale}
-}
-

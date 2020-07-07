@@ -221,6 +221,30 @@ double calc_log_likelihood(
   return loglike;
 }
 
+arma::uvec extract_z(
+  arma::mat gamma_i, int K, int N, arma::uvec idx) {
+  // declarations
+  arma::uvec z(N, arma::fill::zeros);
+
+  // go through each component
+  for(int i = 0; i < N; ++i) {
+    // get this x, group mean
+    double g_max = -1;
+    int k_max = -1;
+    for(int k = 0; k < K; ++k) {
+      // new max?
+      if ( gamma_i(i, k) > g_max ) {
+        g_max   = gamma_i(i, k);
+        k_max   = k;
+      }
+    }
+    // store the best k
+    z(i)  = idx(k_max);
+  }
+
+  return z;
+}
+
 arma::mat extract_p_jk(arma::mat gamma_i, arma::uvec groups, int J, int K, int N) {
   // declarations
   arma::mat p_jk(J, K, arma::fill::zeros);
@@ -260,6 +284,7 @@ List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups
   arma::vec like_1(n_iter, arma::fill::zeros);
   arma::vec like_2(n_iter, arma::fill::zeros);
   arma::uvec k_order(K);
+  arma::uvec z(N);
   arma::mat p_jk(J, K);
 
   // initialize
@@ -303,6 +328,7 @@ List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups
   k_order   = sort_index(beta_k.col(0));
   beta_k    = reorder_matrix_rows(beta_k, k_order);
   sigma_k   = reorder_cube_slices(sigma_k, k_order);
+  z         = extract_z(gamma_i, K, N, k_order);
   p_k       = reorder_vector(p_k, k_order);
   p_jk      = reorder_matrix_cols(p_jk, k_order);
 
@@ -315,6 +341,8 @@ List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups
     Rcpp::Named("alpha_j")  = alpha_j, 
     Rcpp::Named("beta_k")   = beta_k, 
     Rcpp::Named("sigma_k")  = sigma_k, 
+    Rcpp::Named("gamma_i")  = gamma_i, 
+    Rcpp::Named("z")        = z + 1, 
     Rcpp::Named("p_k")      = p_k, 
     Rcpp::Named("p_jk")     = p_jk, 
     Rcpp::Named("like_1")   = like_1, 

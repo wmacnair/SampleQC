@@ -5,25 +5,24 @@
 \title{Plots inferred sample-level statistics over QC biaxials}
 \usage{
 plot_fit_over_biaxials_one_sample(
-  fit_obj,
-  qc_dt,
+  qc_obj,
   sel_sample,
   qc_names = NULL,
   alpha_cut = 0.01
 )
 }
 \arguments{
-\item{fit_obj}{fit_obj object from function fit_qc_model}
+\item{qc_obj}{Output from function fit_sampleQC}
 
-\item{qc_dt}{data.table of QC metrics}
+\item{sel_sample}{Which sample to plot?}
 
-\item{sel_sample}{which sample to plot?}
+\item{qc_names}{List of metrics to be plotted (first is used for y axis).
+Default is to use the qc_names specified in metadata(qc_obj)$qc_names; this
+option is included to allow for "zooming in" on a subset, or changing the
+order in which they are plotted.}
 
-\item{qc_names}{list of metrics to be plotted (first is used for y axis)}
-
-\item{alpha_cut}{contour value for ellipses}
-
-\item{fit_list}{list of fit_obj objects (for comparing multiple models)}
+\item{alpha_cut}{Chi-squared quantile to determine how large the ellipses
+should be.}
 }
 \value{
 ggplot object

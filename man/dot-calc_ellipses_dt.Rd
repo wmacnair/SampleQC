@@ -4,16 +4,18 @@
 \alias{.calc_ellipses_dt}
 \title{Calculates path for an ellipse based on 2D mu and sigma values}
 \usage{
-.calc_ellipses_dt(fit_obj, sel_sample, dim1, dim2, dim2_name, alpha = 0.01)
+.calc_ellipses_dt(qc_obj, sel_sample, dim1, dim2, dim2_name, alpha = 0.01)
 }
 \arguments{
-\item{fit_obj}{fit_obj object from function fit_qc_model}
+\item{qc_obj}{Output from function fit_sampleQC}
 
-\item{dim1}{dimension to use}
+\item{sel_sample}{Which sample?}
 
-\item{dim2}{dimension to use}
+\item{dim1, dim2}{Dimensions to use}
 
-\item{alpha}{contour threshold}
+\item{dim2_name}{Name of second dimension}
+
+\item{alpha}{Chi-squared quantile to use for ellipse sizes}
 }
 \value{
 data.table object

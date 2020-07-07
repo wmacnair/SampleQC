@@ -201,9 +201,16 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts',
     if ('logit_mito' %in% col_names)
         assert_that( all(is.finite(qc_dt$logit_mito)) )
 
-    # check all names
+    # check qc metrics and annotations for NAs
     for (n in qc_names) {
         assert_that( all(!is.na(qc_dt[[n]])) )
+    }
+    annots_auto     = c("med_counts", "counts_cat", "med_mito", 
+        "mito_cat", "log_N", "N_cat")
+    for (n in annots_auto) {
+        if ( n %in% names(qc_dt) )
+            assert_that( all(!is.na(qc_dt[[n]])),
+                msg=paste0('NA present in an annotation variable, ', n) )
     }
 }
 
@@ -222,7 +229,7 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts',
         qc_dt[, med_counts  := median(log_counts), by='sample_id']
 
         # put mito level into categories
-        counts_cuts = c(1,100,300,1000,3000,10000,30000)
+        counts_cuts = c(1,100,300,1000,3000,10000,30000, Inf)
         counts_labs = paste0('<=', counts_cuts[-1])
         qc_dt[, counts_cat  := factor(
             cut(10^med_counts, breaks=counts_cuts, labels=counts_labs), 
@@ -246,11 +253,11 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts',
     qc_dt[, log_N    := log10(.N), by='sample_id']
 
     # and factor version
-    N_cuts      = c(1,100,200,400,1000,2000,4000,10000,20000,40000)
+    N_cuts      = c(1,100,200,400,1000,2000,4000,10000,20000,40000,Inf)
     N_labs      = paste0('<=', N_cuts[-1])
     qc_dt[, N_cat    := factor(
         cut(10^log_N, breaks=N_cuts, labels=N_labs), 
-        levels=rev(N_labs)), by=sample_id]
+        levels=N_labs), by=sample_id]
 
     return(qc_dt)
 }
@@ -271,7 +278,7 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts',
 #'
 #' @return NULL
 #' @export
-make_SampleQC_report <- function(mmd_list, em_list, save_dir, proj_name) {
+make_SampleQC_report <- function(qc_obj, save_dir, proj_name) {
     # checks
     assert_that( dir.exists(save_dir) )
     # start_dir   = getwd()
@@ -296,4 +303,112 @@ make_SampleQC_report <- function(mmd_list, em_list, save_dir, proj_name) {
 
     # # go back to original directory
     # setwd(start_dir)
+}
+
+#' Checks whether a given sce object is a SampleQC object
+#' 
+#' @param qc_obj SampleQC object
+#' 
+#' @importFrom assertthat assert_that
+#' @importFrom S4Vectors metadata
+#' @importFrom SummarizedExperiment assays
+#' @return string saying progress
+#' 
+#' @keyword internal
+.check_is_qc_obj <- function(qc_obj) {
+    # check is an sce
+    assert_that(
+        is(qc_obj, "SingleCellExperiment"),
+        msg='not SampleQC object: must be SingleCellExperiment'
+        )
+
+    # check that correct assay names are present
+    assert_that(
+        all( c('mmd', 'mmd_adj') %in% names(assays(qc_obj)) ),
+        msg='not SampleQC object: "mmd" and "mmd_adj" 
+        must be present in assays'
+        )
+    # check that base colData names are present
+    cd_names    = names(colData(qc_obj))
+    base_names  = c('sample_id', 'cell_id', 'qc_metrics')
+    assert_that(
+        all( base_names %in% cd_names ),
+        msg=paste0('not SampleQC object: "', 
+            paste(setdiff(base_names, cd_names), collapse='", "'), 
+            '" missing from colData')
+        )
+    # check that base annotations are present
+    base_disc   = c('N_cat', 'mito_cat')
+    names_disc  = names(colData(qc_obj)$annot_disc[[1]])
+    assert_that(
+        all( base_disc %in% names_disc ),
+        msg=paste0('not SampleQC object: "', 
+            paste(setdiff(base_disc, names_disc), collapse='", "'), 
+            '" missing from annotations')
+        )    
+    base_cont   = c('log_N', 'med_mito', 'med_counts')
+    names_cont  = names(colData(qc_obj)$annot_cont[[1]])
+    assert_that(
+        all( base_cont %in% names_cont ),
+        msg=paste0('not SampleQC object: "', 
+            paste(setdiff(base_cont, names_cont), collapse='", "'), 
+            '" missing from annotations')
+        )    
+    # check that MMD colData names are present
+    mmd_names   = c('group_id')
+    assert_that(
+        all( mmd_names %in% cd_names ),
+        msg=paste0('not SampleQC object: "', 
+            paste(setdiff(mmd_names, cd_names), collapse='", "'), 
+            '" missing from colData')
+        )
+    # check that dims of colData match assay dims
+    assert_that(
+        ncol(qc_obj)==nrow(qc_obj),
+        msg=paste0('not SampleQC object: assays should be square')
+        )
+    # check that nested colData entries have consistent sizes
+    assert_that(
+        ncol(qc_obj)==nrow(qc_obj),
+        msg=paste0('not SampleQC object: assays should be square')
+        )
+    # check metadata
+    meta_names  = names(metadata(qc_obj))
+    meta_needed = c("qc_names", "D", "n_groups", "group_list", "mmd_params", 
+        "annots")
+    assert_that(
+        all( meta_needed %in% meta_names ),
+        msg=paste0('metadata for qc_obj incorrect')
+        )
+    assert_that(
+        all(colnames(colData(qc_obj)$annot_disc[[1]]) == 
+            metadata(qc_obj)$annots$disc),
+        msg=paste0('names of annot_disc in colData(qc_obj) should match 
+            metadata(qc_obj)$annots$disc')
+        )
+    assert_that(
+        all(colnames(colData(qc_obj)$annot_cont[[1]]) == 
+            metadata(qc_obj)$annots$cont),
+        msg=paste0('names of annot_cont in colData(qc_obj) should match 
+            metadata(qc_obj)$annots$cont')
+        )
+
+    # if ok so far, definitely return mmd
+    obj_type    = 'mmd'
+
+    # are fit colData names also present?
+    fit_names   = c('K', 'mu_0', 'alpha_j', 
+        'beta_k', 'sigma_k', 'p_jk', 'z', 'outlier')
+    if ( !all(fit_names %in% cd_names) )
+        return(obj_type)
+
+    # are fit meta things present?
+    fit_metas   = c('fit_list', 'fit_params')
+    if ( !all(fit_metas %in% meta_names) )
+        return(obj_type)
+
+    # if we got through to here, assume that we fit the thing
+    obj_type    = 'fit'
+    
+    return(obj_type)
 }

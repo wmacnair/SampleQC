@@ -270,7 +270,7 @@ void restrict_to_x_k(arma::mat const& x, arma::uvec const& groups, arma::mat con
 
   // add observations in kth component
   for(int i = 0; i < N; ++i) {
-    if( z(i)==k ) {
+    if( z(i) == (unsigned)k ) {
       x_k_tmp.row(ix)   = x.row(i) - alpha_j.row(groups(i));
       n++;
       ix++;
@@ -381,7 +381,7 @@ arma::uvec calc_expected_z(arma::mat x, arma::uvec groups, arma::mat alpha_j, ar
         n_zeros++;
       }
     }
-    if (z(i) >= K)
+    if ( z(i) >= (unsigned)K )
       throw "z too big";
   }
 
@@ -507,6 +507,7 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
     Rcpp::Named("alpha_j")  = alpha_j, 
     Rcpp::Named("beta_k")   = beta_k, 
     Rcpp::Named("sigma_k")  = scale_k, 
+    Rcpp::Named("z")        = new_z + 1, 
     Rcpp::Named("p_jk")     = p_jk, 
     Rcpp::Named("like_1")   = like_1, 
     Rcpp::Named("like_2")   = like_2

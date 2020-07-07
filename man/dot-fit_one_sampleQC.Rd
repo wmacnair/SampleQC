@@ -4,33 +4,14 @@
 \alias{.fit_one_sampleQC}
 \title{Fits \code{SampleQC} model to one cluster of samples}
 \usage{
-.fit_one_sampleQC(
-  qc_dt,
-  qc_names = c("log_counts", "log_feats", "logit_mito"),
-  K = 1,
-  alpha = 0.01,
-  em_iters = 50,
-  mcd_alpha = 0.5,
-  mcd_iters = 50,
-  method = c("robust", "mle")
-)
+.fit_one_sampleQC(df, K = 1, fit_params)
 }
 \arguments{
-\item{qc_dt}{Data.table of QC metrics for all cells and samples}
-
-\item{qc_names}{List of metrics to actually use for calculating
-sample-to-sample distances}
+\item{df}{DataFrame with lots of nested things}
 
 \item{K}{How many QC celltypes are there?}
 
-\item{alpha}{Chi squared threshold to define outliers}
-
-\item{em_iters}{Maximum number of EM iterations}
-
-\item{mcd_alpha, mcd_iters}{Parameters for robust estimation of celltype
-means and covariances}
-
-\item{method}{Which of various implemented options should be used?}
+\item{fit_params}{List of parameters specifying the model}
 }
 \value{
 list, containing lots of cell outlier information
@@ -38,8 +19,4 @@ list, containing lots of cell outlier information
 \description{
 Fits \code{SampleQC} model to one cluster of samples
 }
-\section{Details}{
-
-}
-
 \keyword{internal}

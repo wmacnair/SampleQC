@@ -4,7 +4,7 @@
 \alias{.calc_one_ellipse}
 \title{Calculates path for an ellipse based on 2D mu and sigma values}
 \usage{
-.calc_one_ellipse(mu, sigma, alpha, c, s)
+.calc_one_ellipse(mu, sigma, alpha)
 }
 \arguments{
 \item{mu}{mean vector}
@@ -12,10 +12,6 @@
 \item{sigma}{covariance matrix}
 
 \item{alpha}{contour threshold}
-
-\item{c}{component}
-
-\item{s}{sample}
 }
 \value{
 data.table object

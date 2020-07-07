@@ -4,12 +4,12 @@
 \alias{plot_outliers_one_sample}
 \title{Calculates path for an ellipse based on 2D mu and sigma values}
 \usage{
-plot_outliers_one_sample(em_list, s)
+plot_outliers_one_sample(qc_obj, sel_sample)
 }
 \arguments{
-\item{em_list}{Output from .fit_one_sampleQC}
+\item{qc_obj}{Output from function fit_sampleQC}
 
-\item{s}{Selected sample}
+\item{sel_sample}{Selected sample}
 }
 \value{
 ggplot object

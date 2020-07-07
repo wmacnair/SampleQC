@@ -6,19 +6,17 @@
 embed_sample_to_sample_MMDs}
 \usage{
 plot_embeddings(
-  mmd_list,
+  qc_obj,
   var_type = c("discrete", "continuous"),
   sel_embed = c("MDS", "UMAP")
 )
 }
 \arguments{
+\item{qc_obj}{SampleQC object}
+
 \item{var_type}{Is this annotation discrete or continuous?}
 
 \item{sel_embed}{Which type of embedding to use}
-
-\item{embed_dt}{Output from embed_sample_to_sample_MMDs}
-
-\item{annot_vars}{Which set of annotation variables to plot}
 }
 \description{
 Plots non-linear embeddings of MMD distances calculated by
