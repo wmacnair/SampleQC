@@ -390,23 +390,31 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
     metadata(qc_obj)$fit_params = fit_params
 
     # set up dummy columns
+    sample_list = rownames(colData(qc_obj))
     n_samples   = nrow(colData(qc_obj))
     D           = metadata(qc_obj)$D
     colData(qc_obj)$K           = numeric(n_samples)
     colData(qc_obj)$mu_0        = 
-        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples)
+        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples) %>% 
+        setNames(sample_list)
     colData(qc_obj)$alpha_j     = 
-        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples)
+        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples) %>% 
+        setNames(sample_list)
     colData(qc_obj)$beta_k      = 
-        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples)
+        rep(list(matrix(NA, nrow=1, ncol=D)), n_samples) %>% 
+        setNames(sample_list)
     colData(qc_obj)$sigma_k     = 
-        rep(list(matrix(NA, nrow=D, ncol=D)), n_samples)
+        rep(list(matrix(NA, nrow=D, ncol=D)), n_samples) %>% 
+        setNames(sample_list)
     colData(qc_obj)$p_jk        = 
-        rep(list(matrix(NA, nrow=1, ncol=1)), n_samples)
+        rep(list(matrix(NA, nrow=1, ncol=1)), n_samples) %>% 
+        setNames(sample_list)
     colData(qc_obj)$z           = 
-        rep(list(factor(NA)), n_samples)
+        rep(list(factor(NA)), n_samples) %>% 
+        setNames(sample_list)
     colData(qc_obj)$outlier     = 
-        rep(list(factor(NA)), n_samples)
+        rep(list(factor(NA)), n_samples) %>% 
+        setNames(sample_list)
 
     # loop through fitted models
     for (ii in seq_along(fit_list)) {
@@ -519,10 +527,10 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
         ) %>% rbindlist
 
     # extract means
-    mu_0        = colData(qc_obj)[sel_sample, 'mu_0'][[1]]
-    alpha_j     = colData(qc_obj)[sel_sample, 'alpha_j'][[1]]
-    beta_k      = colData(qc_obj)[sel_sample, 'beta_k'][[1]]
-    sigma_k     = colData(qc_obj)[sel_sample, 'sigma_k'][[1]]
+    mu_0        = colData(qc_obj)[[sel_sample, 'mu_0']]
+    alpha_j     = colData(qc_obj)[[sel_sample, 'alpha_j']]
+    beta_k      = colData(qc_obj)[[sel_sample, 'beta_k']]
+    sigma_k     = colData(qc_obj)[[sel_sample, 'sigma_k']]
     means_dt    = sweep(beta_k, 2, mu_0 + alpha_j, '+') %>%
         data.table %>%
         set_colnames(qc_names) %>%
@@ -581,10 +589,10 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
     dim2_name, alpha=0.01) {
     # extract data from qc_obj
     K           = colData(qc_obj)[sel_sample, 'K']
-    mu_0        = colData(qc_obj)[sel_sample, 'mu_0'][[1]]
-    alpha_j     = colData(qc_obj)[sel_sample, 'alpha_j'][[1]]
-    beta_k      = colData(qc_obj)[sel_sample, 'beta_k'][[1]]
-    sigma_k     = colData(qc_obj)[sel_sample, 'sigma_k'][[1]]
+    mu_0        = colData(qc_obj)[[sel_sample, 'mu_0']]
+    alpha_j     = colData(qc_obj)[[sel_sample, 'alpha_j']]
+    beta_k      = colData(qc_obj)[[sel_sample, 'beta_k']]
+    sigma_k     = colData(qc_obj)[[sel_sample, 'sigma_k']]
 
     # add together into means
     mus         = sweep(beta_k, 2, mu_0 + alpha_j, '+')
@@ -638,7 +646,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
 #' @importFrom SummarizedExperiment colData
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
-#' @importFrom data.table ":=" setnames rbindlist dcast
+#' @importFrom data.table ":=" setnames rbindlist dcast copy
 #' @importFrom ggplot2 ggplot aes geom_point
 #' @importFrom ggplot2 scale_x_continuous scale_y_continuous
 #' @importFrom ggplot2 facet_grid theme_bw theme labs
@@ -651,9 +659,8 @@ plot_outliers_one_sample <- function(qc_obj, sel_sample) {
     qc_names    = metadata(qc_obj)$qc_names
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]
-    qc_sel      = copy(colData(qc_obj)$qc_metrics[[sel_sample]])
-    outlier_sel = colData(qc_obj)[sel_sample, 'outlier'][[1]][, 
-        c('cell_id', 'outlier'), with=FALSE]
+    qc_sel      = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']])
+    outlier_sel = copy(colData(qc_obj)[[sel_sample, 'outlier']])
     # assert_that( all( qc_sel$cell_id == outlier_sel$cell_id ) )
 
     # join together
