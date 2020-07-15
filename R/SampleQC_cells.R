@@ -492,7 +492,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
 #' @importFrom assertthat assert_that
 #' @importFrom SummarizedExperiment colData
 #' @importFrom magrittr "%>%" set_colnames
-#' @importFrom data.table ":=" setnames rbindlist data.table melt
+#' @importFrom data.table copy ":=" setnames rbindlist data.table melt
 #' @importFrom ggplot2 ggplot aes geom_bin2d geom_path geom_point
 #' @importFrom ggplot2 scale_x_continuous scale_y_continuous scale_shape_manual
 #' @importFrom ggplot2 scale_linetype_manual scale_fill_distiller
@@ -517,7 +517,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
     # get data for cells
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]
-    points_dt   = colData(qc_obj)[[sel_sample, 'qc_metrics']] %>%
+    points_dt   = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']]) %>%
         .[, cell_id := colData(qc_obj)$cell_id[[sel_sample]] ] %>%
         melt(
             id      = c('cell_id', qc_1), 
@@ -670,11 +670,14 @@ plot_outliers_one_sample <- function(qc_obj, sel_sample) {
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]
     qc_sel      = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']])
-    outlier_sel = copy(colData(qc_obj)[[sel_sample, 'outlier']])
     # assert_that( all( qc_sel$cell_id == outlier_sel$cell_id ) )
 
     # join together
-    plot_dt     = cbind(qc_sel, outlier=outlier_sel$outlier) %>%
+    plot_dt     = cbind(
+        cell_id = qc_obj$cell_id[[sel_sample]],
+        qc_sel,
+        outlier = qc_obj$outlier[[sel_sample]]$outlier
+        ) %>%
         melt(
             id      = c('cell_id', 'outlier', qc_1), 
             measure = qc_not_1,
