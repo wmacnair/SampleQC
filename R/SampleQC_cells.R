@@ -49,7 +49,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
     # check some inputs
     .check_is_qc_obj(qc_obj)
     method      = match.arg(method)
-    fit_params  = .check_fit_params(K_all, K_list, n_cores, 
+    fit_params  = .check_fit_params(qc_obj, K_all, K_list, n_cores, 
         alpha, em_iters, mcd_alpha, mcd_iters, method)
 
     # decide whether to fit to each sample group individually
@@ -83,7 +83,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
 #' @importFrom S4Vectors metadata
 #' 
 #' @keyword internal
-.check_fit_params <- function(K_all, K_list, n_cores, 
+.check_fit_params <- function(qc_obj, K_all, K_list, n_cores, 
     alpha, em_iters, mcd_alpha, mcd_iters, method) {
     # check specification of type of run is ok
     if (!is.null(K_all) & !is.null(K_list))
@@ -208,8 +208,19 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
             init_z      = rep(0,N)
         } else {
             message('initializing cluster membership')
+            # fit clusters
             init_z      = summaryMclustBIC(mclust_obj, x_centred,
                 G=K, modelNames=model_spec)$classification-1
+            # check that it worked
+            init_K      = length(unique(init_z))
+            if ( init_K != K ) {
+                warning("initialization didn't find ", K, 
+                    " clusters; running with ", init_K, " instead")
+                
+                # couple of tweaks
+                K       = init_K
+                init_z  = as.integer(factor(init_z)) - 1
+            }
         }
         message('running robust EM algorithm')
         fit_obj = fit_sampleQC_robust_cpp(
