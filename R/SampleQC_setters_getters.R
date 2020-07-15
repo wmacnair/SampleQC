@@ -54,7 +54,7 @@ get_outliers <- function(qc_obj, exc_groups=NULL) {
     outliers_dt[, out_sample    := sample_id %in% exc_samples]
 
     # combine
-    outliers_dt[, outlier       := or(out_cell, out_sample) ]
+    outliers_dt[, outlier       := out_cell | out_sample ]
 
     return(outliers_dt)
 }

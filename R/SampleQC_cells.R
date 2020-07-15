@@ -57,6 +57,10 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         # split by sample groups
         df_list     = split.data.frame(colData(qc_obj), 
             colData(qc_obj)$group_id)
+
+        # put in correct order
+        df_list     = df_list[ metadata(qc_obj)$group_list ]
+
         # fit each sample group
         fit_list    = mclapply(
             seq_along(df_list), 
@@ -427,49 +431,58 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         rep(list(factor(NA)), n_samples) %>% 
         setNames(sample_list)
 
-    # loop through fitted models
-    for (ii in seq_along(fit_list)) {
-        # which samples to update?
-        if ( fit_params$do_list == TRUE ) {
-            # if we fit to each group, do this group
-            g       = names(fit_list)[[ii]]
-            g_idx   = qc_obj$group_id == g
-        } else {
-            # otherwise update everything
-            g_idx   = rep(TRUE, ncol(qc_obj))
+    # TODO: convert warning to error
+    tryCatch({
+        # loop through fitted models
+        for (ii in seq_along(fit_list)) {
+            # which samples to update?
+            if ( fit_params$do_list == TRUE ) {
+                # if we fit to each group, do this group
+                g       = names(fit_list)[[ii]]
+                g_idx   = qc_obj$group_id == g
+    
+                # get this fit_obj
+                fit_obj = fit_list[[g]]
+
+            } else {
+                # otherwise update everything
+                g_idx   = rep(TRUE, ncol(qc_obj))
+
+                # get this fit_obj
+                fit_obj = fit_list[[1]]
+            }
+            # how many here?
+            n_ii    = sum(g_idx)
+
+            # add K
+            colData(qc_obj)$K[g_idx] = 
+                rep(fit_obj$K, n_ii)
+            # add mu_0
+            colData(qc_obj)$mu_0[g_idx] = 
+                rep(list(matrix(fit_obj$mu_0, nrow=1)), n_ii)
+            # add alpha_j
+            colData(qc_obj)$alpha_j[g_idx] = 
+                asplit(fit_obj$alpha_j, 1) %>% 
+                lapply(matrix, nrow=1)
+            # add beta_k
+            colData(qc_obj)$beta_k[g_idx] = 
+                rep(list(fit_obj$beta_k), n_ii)
+            # add sigma_k
+            colData(qc_obj)$sigma_k[g_idx] = 
+                rep(list(fit_obj$sigma_k), n_ii)
+            # add p_jk
+            colData(qc_obj)$p_jk[g_idx] = 
+                asplit(fit_obj$p_jk, 1)
+            # add z
+            colData(qc_obj)$z[g_idx] = 
+                split(as.vector(fit_obj$z), fit_obj$sample_id)
+            # add outliers
+            colData(qc_obj)$outlier[g_idx] = 
+                split(fit_obj$outliers_dt, fit_obj$sample_id)
         }
-        # how many here?
-        n_ii    = sum(g_idx)
-
-        # get this fit_obj
-        fit_obj = fit_list[[ii]]
-
-        # add K
-        colData(qc_obj)$K[g_idx] = 
-            rep(fit_obj$K, n_ii)
-        # add mu_0
-        colData(qc_obj)$mu_0[g_idx] = 
-            rep(list(matrix(fit_obj$mu_0, nrow=1)), n_ii)
-        # add alpha_j
-        colData(qc_obj)$alpha_j[g_idx] = 
-            asplit(fit_obj$alpha_j, 1) %>% 
-            lapply(matrix, nrow=1)
-        # add beta_k
-        colData(qc_obj)$beta_k[g_idx] = 
-            rep(list(fit_obj$beta_k), n_ii)
-        # add sigma_k
-        colData(qc_obj)$sigma_k[g_idx] = 
-            rep(list(fit_obj$sigma_k), n_ii)
-        # add p_jk
-        colData(qc_obj)$p_jk[g_idx] = 
-            asplit(fit_obj$p_jk, 1)
-        # add z
-        colData(qc_obj)$z[g_idx] = 
-            split(as.vector(fit_obj$z), fit_obj$sample_id)
-        # add outliers
-        colData(qc_obj)$outlier[g_idx] = 
-            split(fit_obj$outliers_dt, fit_obj$sample_id)
-    }
+    }, warning = function(w) 
+        stop('problem in assembling results')
+    )
 
     # check it worked ok
     assert_that( .check_is_qc_obj(qc_obj) == 'fit', 
