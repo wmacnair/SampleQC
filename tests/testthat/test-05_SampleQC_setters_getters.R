@@ -43,7 +43,7 @@ test_that("get_n_groups works", {
 test_that("get_outliers works", {
     # if fit_sampleQC not yet run, should throw error
     expect_is(get_outliers(qc_obj), 'data.table')
-    expect_named(get_outliers(qc_obj), c('sample_id', 'cell_id', 'out_cell', 'out_sample', 'outlier'))
+    expect_named(get_outliers(qc_obj), c('sample_id', 'cell_id', 'out_cell', 'out_sample', 'out_cluster', 'outlier'))
 
     # check all sample_ids present
     outliers_dt     = get_outliers(qc_obj)

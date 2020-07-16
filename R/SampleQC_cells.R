@@ -664,6 +664,8 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
 #'
 #' @param qc_obj Output from function fit_sampleQC
 #' @param sel_sample Selected sample
+#' @param outliers_dt Optional alternative outlier specification; see function
+#' \code{get_outliers}.
 #'
 #' @importFrom S4Vectors metadata
 #' @importFrom SummarizedExperiment colData
@@ -677,7 +679,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
 #' 
 #' @return ggplot object
 #' @export
-plot_outliers_one_sample <- function(qc_obj, sel_sample) {
+plot_outliers_one_sample <- function(qc_obj, sel_sample, outliers_dt=NULL) {
     # unpack, arrange
     qc_names    = metadata(qc_obj)$qc_names
     qc_1        = qc_names[[1]]
@@ -685,18 +687,35 @@ plot_outliers_one_sample <- function(qc_obj, sel_sample) {
     qc_sel      = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']])
     # assert_that( all( qc_sel$cell_id == outlier_sel$cell_id ) )
 
-    # join together
-    plot_dt     = cbind(
-        cell_id = qc_obj$cell_id[[sel_sample]],
-        qc_sel,
-        outlier = qc_obj$outlier[[sel_sample]]$outlier
-        ) %>%
-        melt(
-            id      = c('cell_id', 'outlier', qc_1), 
-            measure = qc_not_1,
-            variable.name='qc_x_name', value.name='qc_x'
+    # check which outliers to use
+    if (is.null(outliers_dt)) {
+        # join together
+        plot_dt     = cbind(
+            cell_id = qc_obj$cell_id[[sel_sample]],
+            qc_sel,
+            outlier = qc_obj$outlier[[sel_sample]]$outlier
             ) %>%
-        setnames(qc_1, 'qc_y')
+            melt(
+                id      = c('cell_id', 'outlier', qc_1), 
+                measure = qc_not_1,
+                variable.name='qc_x_name', value.name='qc_x'
+                ) %>%
+            setnames(qc_1, 'qc_y')        
+    } else {
+        # join together
+        plot_dt     = cbind(
+            cell_id = qc_obj$cell_id[[sel_sample]],
+            qc_sel
+            ) %>% 
+            merge(outliers_dt[, .(cell_id, outlier)], by='cell_id', 
+                all.x=TRUE, all.y=FALSE) %>%
+            melt(
+                id      = c('cell_id', 'outlier', qc_1), 
+                measure = qc_not_1,
+                variable.name='qc_x_name', value.name='qc_x'
+                ) %>%
+            setnames(qc_1, 'qc_y')        
+    }
 
     # plot
     g   = ggplot() + 
