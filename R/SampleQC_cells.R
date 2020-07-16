@@ -57,6 +57,10 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         # split by sample groups
         df_list     = split.data.frame(colData(qc_obj), 
             colData(qc_obj)$group_id)
+
+        # put in correct order
+        df_list     = df_list[ metadata(qc_obj)$group_list ]
+
         # fit each sample group
         fit_list    = mclapply(
             seq_along(df_list), 
@@ -427,49 +431,58 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         rep(list(factor(NA)), n_samples) %>% 
         setNames(sample_list)
 
-    # loop through fitted models
-    for (ii in seq_along(fit_list)) {
-        # which samples to update?
-        if ( fit_params$do_list == TRUE ) {
-            # if we fit to each group, do this group
-            g       = names(fit_list)[[ii]]
-            g_idx   = qc_obj$group_id == g
-        } else {
-            # otherwise update everything
-            g_idx   = rep(TRUE, ncol(qc_obj))
+    # TODO: convert warning to error
+    tryCatch({
+        # loop through fitted models
+        for (ii in seq_along(fit_list)) {
+            # which samples to update?
+            if ( fit_params$do_list == TRUE ) {
+                # if we fit to each group, do this group
+                g       = names(fit_list)[[ii]]
+                g_idx   = qc_obj$group_id == g
+    
+                # get this fit_obj
+                fit_obj = fit_list[[g]]
+
+            } else {
+                # otherwise update everything
+                g_idx   = rep(TRUE, ncol(qc_obj))
+
+                # get this fit_obj
+                fit_obj = fit_list[[1]]
+            }
+            # how many here?
+            n_ii    = sum(g_idx)
+
+            # add K
+            colData(qc_obj)$K[g_idx] = 
+                rep(fit_obj$K, n_ii)
+            # add mu_0
+            colData(qc_obj)$mu_0[g_idx] = 
+                rep(list(matrix(fit_obj$mu_0, nrow=1)), n_ii)
+            # add alpha_j
+            colData(qc_obj)$alpha_j[g_idx] = 
+                asplit(fit_obj$alpha_j, 1) %>% 
+                lapply(matrix, nrow=1)
+            # add beta_k
+            colData(qc_obj)$beta_k[g_idx] = 
+                rep(list(fit_obj$beta_k), n_ii)
+            # add sigma_k
+            colData(qc_obj)$sigma_k[g_idx] = 
+                rep(list(fit_obj$sigma_k), n_ii)
+            # add p_jk
+            colData(qc_obj)$p_jk[g_idx] = 
+                asplit(fit_obj$p_jk, 1)
+            # add z
+            colData(qc_obj)$z[g_idx] = 
+                split(as.vector(fit_obj$z), fit_obj$sample_id)
+            # add outliers
+            colData(qc_obj)$outlier[g_idx] = 
+                split(fit_obj$outliers_dt, fit_obj$sample_id)
         }
-        # how many here?
-        n_ii    = sum(g_idx)
-
-        # get this fit_obj
-        fit_obj = fit_list[[ii]]
-
-        # add K
-        colData(qc_obj)$K[g_idx] = 
-            rep(fit_obj$K, n_ii)
-        # add mu_0
-        colData(qc_obj)$mu_0[g_idx] = 
-            rep(list(matrix(fit_obj$mu_0, nrow=1)), n_ii)
-        # add alpha_j
-        colData(qc_obj)$alpha_j[g_idx] = 
-            asplit(fit_obj$alpha_j, 1) %>% 
-            lapply(matrix, nrow=1)
-        # add beta_k
-        colData(qc_obj)$beta_k[g_idx] = 
-            rep(list(fit_obj$beta_k), n_ii)
-        # add sigma_k
-        colData(qc_obj)$sigma_k[g_idx] = 
-            rep(list(fit_obj$sigma_k), n_ii)
-        # add p_jk
-        colData(qc_obj)$p_jk[g_idx] = 
-            asplit(fit_obj$p_jk, 1)
-        # add z
-        colData(qc_obj)$z[g_idx] = 
-            split(as.vector(fit_obj$z), fit_obj$sample_id)
-        # add outliers
-        colData(qc_obj)$outlier[g_idx] = 
-            split(fit_obj$outliers_dt, fit_obj$sample_id)
-    }
+    }, warning = function(w) 
+        stop('problem in assembling results')
+    )
 
     # check it worked ok
     assert_that( .check_is_qc_obj(qc_obj) == 'fit', 
@@ -492,7 +505,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
 #' @importFrom assertthat assert_that
 #' @importFrom SummarizedExperiment colData
 #' @importFrom magrittr "%>%" set_colnames
-#' @importFrom data.table ":=" setnames rbindlist data.table melt copy
+#' @importFrom data.table copy ":=" setnames rbindlist data.table melt
 #' @importFrom ggplot2 ggplot aes geom_bin2d geom_path geom_point
 #' @importFrom ggplot2 scale_x_continuous scale_y_continuous scale_shape_manual
 #' @importFrom ggplot2 scale_linetype_manual scale_fill_distiller
@@ -517,8 +530,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
     # get data for cells
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]
-    points_dt   = colData(qc_obj)$qc_metrics[[sel_sample]] %>%
-        copy %>%
+    points_dt   = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']]) %>%
         .[, cell_id := colData(qc_obj)$cell_id[[sel_sample]] ] %>%
         melt(
             id      = c('cell_id', qc_1), 
@@ -652,6 +664,8 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
 #'
 #' @param qc_obj Output from function fit_sampleQC
 #' @param sel_sample Selected sample
+#' @param outliers_dt Optional alternative outlier specification; see function
+#' \code{get_outliers}.
 #'
 #' @importFrom S4Vectors metadata
 #' @importFrom SummarizedExperiment colData
@@ -665,23 +679,43 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
 #' 
 #' @return ggplot object
 #' @export
-plot_outliers_one_sample <- function(qc_obj, sel_sample) {
+plot_outliers_one_sample <- function(qc_obj, sel_sample, outliers_dt=NULL) {
     # unpack, arrange
     qc_names    = metadata(qc_obj)$qc_names
     qc_1        = qc_names[[1]]
     qc_not_1    = qc_names[-1]
     qc_sel      = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']])
-    outlier_sel = copy(colData(qc_obj)[[sel_sample, 'outlier']])
     # assert_that( all( qc_sel$cell_id == outlier_sel$cell_id ) )
 
-    # join together
-    plot_dt     = cbind(qc_sel, outlier_sel) %>%
-        melt(
-            id      = c('cell_id', 'outlier', qc_1), 
-            measure = qc_not_1,
-            variable.name='qc_x_name', value.name='qc_x'
+    # check which outliers to use
+    if (is.null(outliers_dt)) {
+        # join together
+        plot_dt     = cbind(
+            cell_id = qc_obj$cell_id[[sel_sample]],
+            qc_sel,
+            outlier = qc_obj$outlier[[sel_sample]]$outlier
             ) %>%
-        setnames(qc_1, 'qc_y')
+            melt(
+                id      = c('cell_id', 'outlier', qc_1), 
+                measure = qc_not_1,
+                variable.name='qc_x_name', value.name='qc_x'
+                ) %>%
+            setnames(qc_1, 'qc_y')        
+    } else {
+        # join together
+        plot_dt     = cbind(
+            cell_id = qc_obj$cell_id[[sel_sample]],
+            qc_sel
+            ) %>% 
+            merge(outliers_dt[, .(cell_id, outlier)], by='cell_id', 
+                all.x=TRUE, all.y=FALSE) %>%
+            melt(
+                id      = c('cell_id', 'outlier', qc_1), 
+                measure = qc_not_1,
+                variable.name='qc_x_name', value.name='qc_x'
+                ) %>%
+            setnames(qc_1, 'qc_y')        
+    }
 
     # plot
     g   = ggplot() + 

@@ -5,6 +5,7 @@
 \title{Checks that the parameters specified are ok}
 \usage{
 .check_fit_params(
+  qc_obj,
   K_all,
   K_list,
   n_cores,
