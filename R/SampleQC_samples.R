@@ -359,15 +359,16 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     message('  calculating UMAP embedding')
 
     # convert mmd mat to nearest neighbours
-    nn_method   = list(
-        idx     = apply(
-            mmd_mat, 1, function(row) order(row)[2:(n_nhbrs+1)]
-            ) %>% t,
-        dist    = apply(
-            mmd_mat, 1, function(row) sort(row)[2:(n_nhbrs+1)]
-            ) %>% t
-        )
-    umap_mat    = umap(NULL, nn_method=nn_method, min_dist=0.001)
+    # nn_method   = list(
+    #     idx     = apply(
+    #         mmd_mat, 1, function(row) order(row)[2:(n_nhbrs+1)]
+    #         ) %>% t,
+    #     dist    = apply(
+    #         mmd_mat, 1, function(row) sort(row)[2:(n_nhbrs+1)]
+    #         ) %>% t
+    #     )
+    # umap_mat    = umap(NULL, nn_method=nn_method, min_dist=0.001)
+    umap_mat    = umap(as.dist(mmd_mat), min_dist=0.001)
 
     # tidy up
     umap_mat    = apply(umap_mat, 2, rescale, to=c(0.05, 0.95))

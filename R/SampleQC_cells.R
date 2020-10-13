@@ -25,6 +25,7 @@
 #' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype 
 #' means and covariances
 #' @param method Which of various implemented options should be used?
+#' @param track Track values of parameters during fitting (used for debugging)
 #' 
 #' @section Details:
 #'
@@ -45,12 +46,12 @@
 #' @export
 fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores, 
     alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, 
-    method=c('robust', 'mle')) {
+    method=c('robust', 'mle'), track=FALSE) {
     # check some inputs
     .check_is_qc_obj(qc_obj)
     method      = match.arg(method)
     fit_params  = .check_fit_params(qc_obj, K_all, K_list, n_cores, 
-        alpha, em_iters, mcd_alpha, mcd_iters, method)
+        alpha, em_iters, mcd_alpha, mcd_iters, method, track)
 
     # decide whether to fit to each sample group individually
     if (fit_params$do_list) {
@@ -83,12 +84,12 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
 
 #' Checks that the parameters specified are ok
 #' 
-#' @importFrom assertthat assert_that
+#' @importFrom assertthat assert_that is.flag
 #' @importFrom S4Vectors metadata
 #' 
 #' @keyword internal
 .check_fit_params <- function(qc_obj, K_all, K_list, n_cores, 
-    alpha, em_iters, mcd_alpha, mcd_iters, method) {
+    alpha, em_iters, mcd_alpha, mcd_iters, method, track) {
     # check specification of type of run is ok
     if (!is.null(K_all) & !is.null(K_list))
         stop('only one of `K_all` and `K_list` should be specified at one 
@@ -134,6 +135,9 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         n_cores     = 1
     }
 
+    assert_that( is.flag(track),
+        msg     = 'track must be either TRUE or FALSE')
+
     # assemble
     fit_params  = list(
         K_list      = K_list,
@@ -144,6 +148,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         em_iters    = em_iters,
         mcd_iters   = mcd_iters,
         mcd_alpha   = mcd_alpha,
+        track       = track,
         do_list     = do_list
         )
     
@@ -170,6 +175,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
     mcd_alpha   = fit_params$mcd_alpha
     mcd_iters   = fit_params$mcd_iters
     method      = fit_params$method
+    track       = fit_params$track
 
     # extract x values
     x           = do.call(rbind, lapply(df$qc_metrics, as.matrix))

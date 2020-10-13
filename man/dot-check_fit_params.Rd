@@ -13,7 +13,8 @@
   em_iters,
   mcd_alpha,
   mcd_iters,
-  method
+  method,
+  track
 )
 }
 \description{

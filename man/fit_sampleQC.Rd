@@ -19,7 +19,8 @@ fit_sampleQC(
   em_iters = 50,
   mcd_alpha = 0.5,
   mcd_iters = 50,
-  method = c("robust", "mle")
+  method = c("robust", "mle"),
+  track = FALSE
 )
 }
 \arguments{
@@ -44,6 +45,8 @@ K_list is set, n_cores=length(K_list).}
 means and covariances}
 
 \item{method}{Which of various implemented options should be used?}
+
+\item{track}{Track values of parameters during fitting (used for debugging)}
 }
 \value{
 list, containing MMD values and sample clusters based on MMD values
