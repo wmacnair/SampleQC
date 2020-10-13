@@ -23,10 +23,6 @@
 #' @section Details:
 #' [describe what the components are]
 #' 
-#' @importFrom gtools rdirichlet
-#' @importFrom assertthat assert_that
-#' @importFrom magrittr "%>%"
-#'
 #' @return list with two entries:
 #' - \code{qc_dt}, a \code{\link[data.table]{data.table}}
 #' - \code{params}, a list specifying the true parameter values for each group
@@ -54,6 +50,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 
             # extract relevant outlier parameters
             p_out_0_ii  = expt_params$p_out_0s[[ii]]
+            theta_0_ii  = expt_params$theta_0s[[ii]]
             p_loss_0_ii = expt_params$p_loss_0s[[ii]]
 
             # simulate
@@ -61,7 +58,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
                 N_ii, D, J_ii, K_ii,
                 mu_0_ii, 
                 beta_k_ii, Sigma_k_ii,
-                p_out_0_ii, p_loss_0_ii
+                p_out_0_ii, theta_0_ii, p_loss_0_ii
                 )
 
             return(sims_ii)
@@ -85,9 +82,8 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @param K Number of components
 #' @param qc_names Names for qc metrics
 #' 
-#' @importFrom magrittr "%>%"
-#' @importFrom gtools rdirichlet
 #' @importFrom assertthat assert_that
+#' @importFrom magrittr "%>%"
 #'
 #' @return list of parameters
 #' @keyword internal
@@ -100,7 +96,8 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
         msg='length of qc_names must be equal to D')
 
     # decide sizes of groups
-    group_prob  = rdirichlet(1, rep(1, n_groups))
+    dirichlet_a = 10
+    group_prob  = rdirichlet(1, rep(dirichlet_a, n_groups))
     Ns          = rmultinom(1, n_cells, prob=group_prob) %>% as.vector
 
     # how many samples in each? (J)
@@ -118,6 +115,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 
     # generate p_out params for each
     p_out_0s    = .draw_p_out_0s(n_groups)
+    theta_0s    = .draw_theta_0s(n_groups)
     p_loss_0s   = .draw_p_loss_0s(n_groups)
 
     # bundle together
@@ -136,6 +134,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
         Sigma_k         = Sigma_k,
         sel_ks          = sel_ks,
         p_out_0s        = p_out_0s,
+        theta_0s        = theta_0s,
         p_loss_0s       = p_loss_0s
         )
 
@@ -156,14 +155,35 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @keyword internal
 .draw_mu_0s <- function(D, n_groups) {
     # alpha_j ~ MVN
-    mu_0_0          = matrix(c(3.5, 3, -2), nrow=1)
+    mu_0_0          = matrix(
+        c(log10(3000), log10(1500), qlogis(0.03)),
+        nrow=1)
+
+    # cor_12          = 0.98
+    # cor_13          = -0.7
+    # cor_23          = -0.8
+    # L_mat           = matrix(0, nrow=D, ncol=D)
+    # L_mat[1,1]      = 1
+    # L_mat[2,1]      = cor_12
+    # L_mat[3,1]      = cor_13
+    # L_mat[2,2]      = sqrt(1 - cor_12^2)
+    # L_mat[2,2]      = sqrt(1 - cor_12^2)
+    # L_mat[3,2]      = (cor_23 - L_mat[3,1] * L_mat[2,1]) / L_mat[2,2]
+    # L_mat[3,3]      = sqrt(1 - L_mat[3,1]^2 - L_mat[3,2]^2)
+    # L_mat %*% t(L_mat)
+
     corr_mat        = diag(D)
-    corr_mat[1,2]   = 0.95 
-    corr_mat[2,3]   = -0.3
+    corr_mat[1,2]   = 0.98
+    corr_mat[1,3]   = -0.7
+    corr_mat[2,3]   = -0.8
     corr_mat        = corr_mat + t(corr_mat)
     diag(corr_mat)  = 1
-    sd_0            = rep(0.2, D)
+    # check is positive def
+    assert_that( all(eigen(corr_mat)$values>0) )
+
+    sd_0            = c(0.3, 0.4, 1.5)
     Sigma           = diag(sd_0) %*% corr_mat %*% diag(sd_0)
+    assert_that( all(eigen(Sigma)$values>0) )
 
     # simulate mu_0 values
     mu_0s     = rmvnorm(n_groups, mean=rep(0, D), sigma=Sigma) %>%
@@ -186,22 +206,36 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @param K number of components
 #' 
 #' @importFrom assertthat assert_that
+#' @importFrom mvtnorm rmvnorm
 #' @importFrom data.table data.table
 #' @importFrom magrittr "%>%"
 #'
 #' @return ?
 #' @keyword internal
 .draw_beta_k <- function(D, K) {
-    # beta_k ~ MVN
-    beta_sd = 0.5
-    beta_k  = matrix( rnorm(K*D) * beta_sd, ncol=D)
+    # beta_k ~ MVN, based on real data
+    beta_0          = matrix(c(0, 0, 0), nrow=1)
+    corr_mat        = diag(D)
+    corr_mat[1,2]   = 0.9
+    corr_mat[1,3]   = -0.5
+    corr_mat[2,3]   = -0.5
+    corr_mat        = corr_mat + t(corr_mat)
+    diag(corr_mat)  = 1
 
-    # centre
-    beta_k  = sweep(beta_k, 2, colMeans(beta_k), "-")
+    # check is valid correlatin matrix
+    assert_that( all(eigen(corr_mat)$values > 0) )
+
+    # make into sigma matrxi
+    beta_sd_0       = c(0.4, 0.3, 1.5)
+    Sigma           = diag(beta_sd_0) %*% corr_mat %*% diag(beta_sd_0)
+
+    # simulate beta_k, centre
+    beta_k          = rmvnorm(K, mean=beta_0, sigma=Sigma) %>%
+        sweep(2, colMeans(.), "-")
 
     # put ks in correct order
-    k_order = order(beta_k[, 1])
-    beta_k  = beta_k[ k_order, ]
+    k_order         = order(beta_k[, 1])
+    beta_k          = beta_k[ k_order, ]
 
     # check outputs
     assert_that( ncol(beta_k) == D, 
@@ -229,21 +263,45 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return ?
 #' @keyword internal
 .draw_Sigma_k <- function(D, K) {
+    # define scale function for Wishart distn
+    # (based on real data)
+    V_orig  = matrix(
+        c(
+            2.27e-02,  1.66e-02,  1.20e-03,
+            1.66e-02,  1.66e-02, -1.26e-02,
+            1.20e-03, -1.26e-02,  2.93e-01
+        ), nrow=3)
+    sigma_V = diag(V_orig) %>% sqrt
+
+    corr_mat        = diag(D)
+    corr_mat[1,2]   = 0.99
+    corr_mat[1,3]   = -0.6
+    corr_mat[2,3]   = -0.7
+    corr_mat        = corr_mat + t(corr_mat)
+    diag(corr_mat)  = 1
+    # check is positive def
+    assert_that( all(eigen(corr_mat)$values>0) )
+    V       = diag(sigma_V) %*% corr_mat %*% diag(sigma_V)
+
     # draw covariance matrices
-    Sigma_k = vapply(seq_len(K), function(k) {
-        # construct correlation matrix
-        corr_mat        = diag(D)
-        corr_mat[1,2]   = 0.95 
-        corr_mat[2,3]   = 0.3
-        corr_mat        = corr_mat + t(corr_mat)
-        diag(corr_mat)  = 1
+    df      = 10
+    Sigma_k = rWishart(K, df, V/df)
 
-        # turn into covariance matrix
-        sd_vec          = rep(k/10, D)
-        sigma_tmp       = diag(sd_vec) %*% corr_mat %*% diag(sd_vec)
+    # Sigma_k = vapply(seq_len(K), function(k) {
+    #     # do as Wishart
+    #     # construct correlation matrix
+    #     corr_mat        = diag(D)
+    #     corr_mat[1,2]   = 0.99
+    #     corr_mat[2,3]   = 0.3
+    #     corr_mat        = corr_mat + t(corr_mat)
+    #     diag(corr_mat)  = 1
 
-        return(sigma_tmp)
-    }, array(0, c(D,D)) ) %>% array(dim=c(D, D, K))
+    #     # turn into covariance matrix
+    #     sd_vec          = rep(k/10, D)
+    #     sigma_tmp       = diag(sd_vec) %*% corr_mat %*% diag(sd_vec)
+
+    #     return(sigma_tmp)
+    # }, array(0, c(D,D)) ) %>% array(dim=c(D, D, K))
 
     # check outputs
     assert_that( all(dim(Sigma_k) == c(D,D,K)), 
@@ -267,11 +325,21 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 .draw_sel_ks <- function(K, n_groups) {
     # keep drawing until every sample group has at least one component
     sel_ks  = matrix(0, ncol=K, nrow=n_groups)
-    while( any(rowSums(sel_ks) == 0) ) {
+
+    # generate things
+    is_empty    = TRUE
+    is_duped    = TRUE
+    while( is_empty | is_duped ) {
+        # generate random components
         sel_ks  = vapply(
             1:n_groups, 
-            function(ii) rbinom(K, 1, 0.5),
-            numeric(K)) %>% t
+            function(ii) rbinom(K, 1, 0.5) == 1,
+            logical(K)) %>% t
+
+        # check if any empty
+        is_empty    = any(rowSums(sel_ks) == 0)
+        # check if all different
+        is_duped    = any( duplicated(sel_ks, MARGIN=1) )
     }
 
     # checks
@@ -299,7 +367,9 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @keyword internal
 .draw_p_out_0s <- function(n_groups) {
     # sample startpoints
-    p_out_0s    = plogis(qlogis(0.1) + 0.5 * rnorm(n_groups))
+    p_out_00    = 0.08
+    p_out_sd    = 0.3
+    p_out_0s    = plogis(qlogis(p_out_00) + p_out_sd * rnorm(n_groups))
 
     # checks
     assert_that(
@@ -313,6 +383,30 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
         )
 
     return(p_out_0s)
+}
+
+#' @rdname .draw_theta_0s
+#' @title Sample group-level probabilities of cells being outliers
+#' 
+#' @param n_groups number of sample groups
+#' 
+#' @importFrom assertthat assert_that
+#'
+#' @return vector of theta values for beta-binomial distributions, one for each sample group
+#' @keyword internal
+.draw_theta_0s <- function(n_groups) {
+    # sample startpoints
+    theta_00    = 4
+    theta_sd    = 0.5
+    theta_0s    = exp( theta_00 + theta_sd * rnorm(n_groups) )
+
+    # checks
+    assert_that(
+        length(theta_0s) == n_groups, 
+        msg = "theta_0s entries have wrong length"
+        )
+
+    return(theta_0s)
 }
 
 #' @rdname .draw_p_loss_0s
@@ -360,7 +454,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' - \code{params}, a list specifying the true parameter values for this group
 #' @keyword internal
 .sim_sample_group <- function(N, D, J, K, 
-    mu_0, beta_k, Sigma_k, p_out_0, p_loss_0) {
+    mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0) {
 
     # subdivide cells into samples
     samples     = .draw_samples(J, N)
@@ -376,7 +470,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     z           = .draw_z(samples, p_jk, N, J, K)
 
     # draw outlier parameters
-    out_j       = .draw_out_j(J, p_out_0, p_loss_0)
+    out_j       = .draw_out_j(J, p_out_0, theta_0, p_loss_0)
     outliers    = .draw_outliers(samples, out_j, N)
 
     # simulate all healthy cells
@@ -447,7 +541,8 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return vector of K columns
 #' @keyword internal
 .draw_dir_0 <- function(K) {
-    dir_0       = rep(5, K)
+    alpha       = 5
+    dir_0       = rep(alpha, K)
 
     assert_that( length(dir_0) == K )
 
@@ -461,18 +556,28 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @param J number of samples
 #' 
 #' @importFrom assertthat assert_that
+#' @importFrom mvtnorm rmvnorm
 #' @importFrom data.table data.table
 #' @importFrom magrittr "%>%"
 #'
 #' @return matrix of J rows by D columns
 #' @keyword internal
 .draw_alpha_j <- function(D, J) {
-    # alpha_j ~ MVN
-    alpha_j = 0.5
-    alpha_j = matrix(rnorm(J*D) * alpha_j, ncol=D)
+    # alpha_j ~ MVN, based on real data
+    alpha_0         = matrix(c(0, 0, 0), nrow=1)
+    corr_mat        = diag(D)
+    corr_mat[1,2]   = 0.9
+    corr_mat[1,3]   = -0.4
+    corr_mat[2,3]   = -0.6
+    corr_mat        = corr_mat + t(corr_mat)
+    diag(corr_mat)  = 1
+    alpha_j_sd      = c(0.25, 0.25, 0.6)
+    Sigma           = diag(alpha_j_sd) %*% corr_mat %*% diag(alpha_j_sd)
 
-    # centre
-    alpha_j = sweep(alpha_j, 2, colMeans(alpha_j), "-")
+    # simulate alpha_j, centre
+
+    alpha_j         = rmvnorm(J, mean=alpha_0, sigma=Sigma) %>%
+        sweep(2, colMeans(.), "-")
 
     # check outputs
     assert_that( ncol(alpha_j) == D, 
@@ -485,7 +590,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(alpha_j)
 }
 
-#' @rdname .draw_delta_k
+#' @rdname .draw_delta_jk
 #' @title Draws random parameters for mixture model components
 #' 
 #' @param D number of components
@@ -500,11 +605,22 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @keyword internal
 .draw_delta_jk <- function(D, J, K) {
     # delta_jk ~ MVN
-    delta_sd    = 0.1
-    delta_jk    = matrix(rnorm(D*J*K)/2 * delta_sd, ncol=D)
+    delta_0         = matrix(c(0, 0, 0), nrow=1)
+    corr_mat        = diag(D)
+    corr_mat[1,2]   = 0.95
+    corr_mat[1,3]   = -0.6
+    corr_mat[2,3]   = -0.7
+    corr_mat        = corr_mat + t(corr_mat)
+    diag(corr_mat)  = 1
 
-    # centre
-    delta_jk    = sweep(delta_jk, 2, colMeans(delta_jk), "-")
+    assert_that( all(eigen(corr_mat)$values > 0) )
+
+    delta_jk_sd     = c(0.05, 0.05, 0.05)
+    Sigma           = diag(delta_jk_sd) %*% corr_mat %*% diag(delta_jk_sd)
+
+    # simulate delta_j, centre
+    delta_jk        = rmvnorm(J*K, mean=delta_0, sigma=Sigma) %>%
+        sweep(2, colMeans(.), "-")
 
     # check outputs
     assert_that( ncol(delta_jk) == D, 
@@ -578,11 +694,9 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' col 1 is \code{p_out}, proportion of each sample which is an outlier
 #' col 2 is \code{p_lost}, mean proportion of non-mito counts lost in outliers
 #' @keyword internal
-.draw_out_j <- function(J, p_out_0, p_loss_0) {
+.draw_out_j <- function(J, p_out_0, theta_0, p_loss_0) {
     # allow outlier fraction to vary by sample (p_out)
-    scale_0     = 5
-    p_out       = rbeta(J, scale_0 * p_out_0, scale_0 * (1-p_out_0))
-    # p_out       = plogis( rnorm(1e2)*2 + qlogis(0.2) ) %>% stem
+    p_out       = rbeta(J, shape1=theta_0 * p_out_0, theta_0 * (1-p_out_0))
 
     # allow outlier effect to vary by sample (p_lost)
     p_loss      = plogis( rnorm(J)*0.5 + qlogis(p_loss_0) )
@@ -709,7 +823,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
             x_new           = copy(x_tmp)
             x_new[, 1]      = log10(total_new)
             x_new[, 2]      = log10(feats_new)
-            x_new[, 3]      = plogis(mt_prop_new)
+            x_new[, 3]      = qlogis(mt_prop_new)
             x_out[j_idx, ]  = x_new
         }
     }
@@ -784,11 +898,13 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     # put into a data.table which can be used as input to SampleQC
     id_pattern  = sprintf('cell%%0%dd', ceiling(log10(expt_params$n_cells)))
     cell_ids    = sprintf(id_pattern, seq.int(expt_params$n_cells))
-    qc_dt       = data.table(cell_id=cell_ids, x_out, sample_id=samples)
+    qc_ok       = data.table(cell_id=cell_ids, x_ok, sample_id=samples)
+    qc_out      = data.table(cell_id=cell_ids, x_out, sample_id=samples)
 
     # put together
     sims_list = list(
-        qc_dt       = qc_dt,
+        qc_ok       = qc_ok,
+        qc_out      = qc_out,
         x_ok        = x_ok,
         x_out       = x_out,
         groups      = groups,
@@ -1008,4 +1124,112 @@ extract_params_mvn <- function(data_list, param_list) {
     #     .[ , group      := factor(str_match(var, 'j_\\[([0-9]+),')[,2]) ]
     dt   = .annotate_variables_mvn(dt)
     return (dt)
+}
+
+.junk <- function() {
+    # estimating beta_k values
+    alpha_js    = metadata(qc_obj)$fit_list %>% 
+        lapply(function(x) x$alpha_j) %>% 
+        do.call(rbind, .)
+
+    colMeans(alpha_js)
+    apply(alpha_js, 2, sd)
+    cor(alpha_js)
+
+    # estimating beta_k values
+    beta_ks     = metadata(qc_obj)$fit_list %>% 
+        lapply(function(x) x$beta_k) %>% 
+        .[lapply(., nrow) > 1] %>% 
+        lapply(function(l) sweep(l[-1, ,drop=FALSE], 2, l[1, ], "-")) %>% 
+        do.call(rbind, .)
+
+    colMeans(beta_ks)
+    apply(beta_ks, 2, sd)
+    cor(beta_ks)
+
+    # estimating wishart matrix
+    sigmas_list = metadata(qc_obj)$fit_list %>% 
+        lapply(function(x) asplit(x$sigma_k, 3)) %>% 
+        unlist(recursive=FALSE)
+    apply(simplify2array(sigmas_list), 1:2, mean) %>% `/`(3) %>% format(scientific=TRUE, digits=3)
+
+    # estimating p_out values
+    library('emdbook')
+    library('bbmle')
+    p_out_dt = data.table(
+        sample_id   = colData(qc_obj)$sample_id,
+        group_id    = colData(qc_obj)$group_id,
+        n_out       = colData(qc_obj)$outlier %>% sapply(function(x) sum(x$outlier)),
+        n_total     = colData(qc_obj)$outlier %>% sapply(nrow)
+    )
+
+    fits    = sapply(metadata(qc_obj)$group_list,
+        function(g) {
+        # 
+        successes   = p_out_dt[ group_id == g ]$n_out
+        sizes       = p_out_dt[ group_id == g ]$n_total
+        like_fn <- function(prob,theta)
+            -sum(dbetabinom(successes,prob,sizes,theta,log=TRUE))
+        model       = mle2(like_fn,start=list(prob=0.2,theta=9))
+        return( coef(model) )
+        })
+}
+
+.junk2 <- function() {
+    # how to test outliers?
+    # - get good cells for one sample
+    # - try out different values of p
+
+    # generate whole experiment
+    set.seed(20200729)
+    n_groups    = 4
+    n_cells     = 1e5
+    cells_p_s   = 2000
+    D           = 3
+    K           = 4
+    sims_list   = sim_experiment(n_groups, n_cells, cells_p_s, D, K)
+
+    # extract one sample
+    sel_g       = 'QC4'
+    sel_s       = sims_list$samples[sims_list$groups == sel_g][[1]]
+    qc_ok       = copy(sims_list$qc_ok)[ sample_id == sel_s ]
+    x_ok        = qc_ok[, sims_list$expt_params$qc_names, with=FALSE] %>%
+        as.matrix
+    n_j         = nrow(x_ok)
+    p_tmp       = sims_list$group_sims[[sel_g]]$out_j[1, 'p_loss']
+
+    # extract values
+    total_old   = round(10^x_ok[, 1],0)
+    feats_old   = round(10^x_ok[, 2],0)
+    mt_prop_old = plogis(x_ok[, 3])
+    non_mt_old  = round(total_old * (1-mt_prop_old), 0)
+    mt_old      = total_old - non_mt_old
+
+    # downsample
+    non_mt_new  = rbinom(n_j, non_mt_old, 1-p_tmp) + 1
+    feats_new   = rbinom(n_j, feats_old, 1-p_tmp) + 1
+    total_new   = non_mt_new + mt_old + 1
+    mt_prop_new = (mt_old + 1) / total_new
+
+    # update values
+    x_new       = copy(x_ok)
+    x_new[, 1]  = log10(total_new)
+    x_new[, 2]  = log10(feats_new)
+    x_new[, 3]  = qlogis(mt_prop_new)
+
+    x_melt      = data.table(
+        outlier = rep.int(c('ok', 'outlier'), rep(n_j, 2)),
+        rbind(x_ok, x_new)
+        ) %>% melt(id=c('outlier', 'log_counts'))
+
+    # plot
+    g = ggplot(x_melt) +
+        aes( x=value, y=log_counts ) +
+        geom_bin2d() +
+        scale_fill_distiller( palette='RdBu', trans='log10' ) +
+        scale_x_continuous( breaks=pretty_breaks() ) +
+        scale_y_continuous( breaks=pretty_breaks() ) +
+        facet_grid( outlier ~ variable, scales='free_x' ) +
+        theme_bw()
+    ggsave('test.png', g, h=8, w=9)
 }

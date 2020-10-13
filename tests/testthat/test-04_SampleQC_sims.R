@@ -18,7 +18,7 @@ set.seed(seed)
 # tests
 ################
 
-test_that("check .sim_sample_group works", {
+test_that(".sim_sample_group works", {
     # define parameters
     N           = 1e4
     J           = 10
@@ -27,6 +27,7 @@ test_that("check .sim_sample_group works", {
     mu_0        = matrix(c(3, 3.5, -2), nrow=1)
     p_out_0     = 0.2
     p_loss_0    = 0.9
+    theta_0     = 20
 
     # draw component parameters
     beta_k      = .draw_beta_k(D, K)
@@ -45,7 +46,7 @@ test_that("check .sim_sample_group works", {
     z           = .draw_z(samples, p_jk, N, J, K)
 
     # draw outlier parameters
-    out_j       = .draw_out_j(J, p_out_0, p_loss_0)
+    out_j       = .draw_out_j(J, p_out_0, theta_0, p_loss_0)
     outliers    = .draw_outliers(samples, out_j, N)
 
     # simulate all healthy cells
@@ -107,12 +108,12 @@ test_that("check .sim_sample_group works", {
     sims_group  = .sim_sample_group(
         N, D, J, K,
         mu_0, beta_k, Sigma_k,
-        p_out_0, p_loss_0
+        p_out_0, theta_0, p_loss_0
         )
     expect_type(sims_group, 'list')
 })
 
-test_that("check sim_experiment works", {
+test_that("sim_experiment works", {
     # specify default parameters
     n_groups    = 4
     n_cells     = 1e5
@@ -161,7 +162,7 @@ test_that("check sim_experiment works", {
     expect_type(expt_params, 'list')
 })
 
-test_that("check sim_experiment works", {
+test_that("sim_experiment works", {
     # default parameters
     n_groups    = 4
     n_cells     = 1e5
@@ -191,6 +192,7 @@ test_that("check sim_experiment works", {
 
             # extract relevant outlier parameters
             p_out_0_ii  = expt_params$p_out_0s[[ii]]
+            theta_0_ii  = expt_params$theta_0s[[ii]]
             p_loss_0_ii = expt_params$p_loss_0s[[ii]]
 
             # simulate
@@ -198,7 +200,7 @@ test_that("check sim_experiment works", {
                 N_ii, D, J_ii, K_ii,
                 mu_0_ii, 
                 beta_k_ii, Sigma_k_ii,
-                p_out_0_ii, p_loss_0_ii
+                p_out_0_ii, theta_0_ii, p_loss_0_ii
                 )
 
             return(sims_ii)
