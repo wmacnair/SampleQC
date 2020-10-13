@@ -59,7 +59,25 @@ arma::mat reorder_matrix_cols(arma::mat x, arma::uvec idx) {
   int K = x.n_cols;
   arma::mat x_ordered(x.n_rows, K);
   for(int k = 0; k < K; ++k) {
-    x_ordered.col(k)   = x.col(idx(k));
+    x_ordered.col(k)    = x.col(idx(k));
+  }
+  return x_ordered;
+}
+// [[Rcpp::export]]
+arma::cube reorder_cube_rows(arma::cube x, arma::uvec idx) {
+  int K = x.n_rows;
+  arma::cube x_ordered(K, x.n_cols, x.n_slices);
+  for(int k = 0; k < K; ++k) {
+    x_ordered.row(k)    = x.row(idx(k));
+  }
+  return x_ordered;
+}
+// [[Rcpp::export]]
+arma::cube reorder_cube_cols(arma::cube x, arma::uvec idx) {
+  int K = x.n_cols;
+  arma::cube x_ordered(x.n_rows, K, x.n_slices);
+  for(int k = 0; k < K; ++k) {
+    x_ordered.col(k)    = x.col(idx(k));
   }
   return x_ordered;
 }
@@ -68,7 +86,7 @@ arma::cube reorder_cube_slices(arma::cube x, arma::uvec idx) {
   int K = x.n_slices;
   arma::cube x_ordered(x.n_rows, x.n_cols, K);
   for(int k = 0; k < K; ++k) {
-    x_ordered.slice(k)   = x.slice(idx(k));
+    x_ordered.slice(k)  = x.slice(idx(k));
   }
   return x_ordered;
 }

@@ -20,7 +20,7 @@ arma::vec calc_maha_dists(arma::mat const &x,
 
   // square these values, return the sum
   x_cen.for_each( [](arma::mat::elem_type& val) { val = val * val; } );
-  return arma::sum(x_cen, 0).t();    
+  return arma::sum(x_cen, 0).t();
 }
 arma::vec calc_loc(arma::mat x, arma::uvec h_idx, int h, int D) {
   arma::vec loc(D, arma::fill::zeros);
@@ -432,7 +432,7 @@ double calc_log_likelihood(
 }
 
 // [[Rcpp::export]]
-List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters) {
+List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, bool track = false) {
   // declare required variables
   arma::vec mu_0(D, arma::fill::zeros);
   arma::mat alpha_j(J, D, arma::fill::zeros);
@@ -444,6 +444,12 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
   arma::vec like_1(em_iters, arma::fill::zeros);
   arma::vec like_2(em_iters, arma::fill::zeros);
   arma::uvec k_order(K, arma::fill::zeros);
+
+  // declare tracking variables, may not be used
+  arma::cube track_alpha_j(J, D, em_iters, arma::fill::zeros);
+  arma::cube track_beta_k(K, D, em_iters, arma::fill::zeros);
+  arma::cube track_scale_k(D*D, K, em_iters, arma::fill::zeros);
+  arma::cube track_p_jk(J, K, em_iters, arma::fill::zeros);
 
   // checks
   if ( (mcd_alpha < 0) | (mcd_alpha >= 1) )
@@ -483,6 +489,13 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
     // update expected component labels
     new_z         = calc_expected_z(x, groups, alpha_j, beta_k, scale_k, p_jk, D, K, N);
 
+    if (track) {
+      track_alpha_j.slice(iter) = alpha_j;
+      track_beta_k.slice(iter)  = beta_k;
+      track_scale_k.slice(iter) = reshape(scale_k, D*D, 1, K);
+      track_p_jk.slice(iter)    = p_jk;
+    }
+
     // admin for end of loop
     z_delta       = sum(new_z != old_z);
     old_z         = new_z;
@@ -497,19 +510,47 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
   scale_k   = reorder_cube_slices(scale_k, k_order);
   p_jk      = reorder_matrix_cols(p_jk, k_order);
 
-  // create big output list
-  return Rcpp::List::create(
-    Rcpp::Named("D")        = D, 
-    Rcpp::Named("J")        = J, 
-    Rcpp::Named("K")        = K, 
-    Rcpp::Named("N")        = N, 
-    Rcpp::Named("mu_0")     = mu_0, 
-    Rcpp::Named("alpha_j")  = alpha_j, 
-    Rcpp::Named("beta_k")   = beta_k, 
-    Rcpp::Named("sigma_k")  = scale_k, 
-    Rcpp::Named("z")        = new_z + 1, 
-    Rcpp::Named("p_jk")     = p_jk, 
-    Rcpp::Named("like_1")   = like_1, 
-    Rcpp::Named("like_2")   = like_2
-  );
+  if (track) {
+    track_beta_k  = reorder_cube_rows(track_beta_k, k_order);
+    track_scale_k = reorder_cube_cols(track_scale_k, k_order);
+    track_p_jk    = reorder_cube_cols(track_p_jk, k_order);
+  }
+
+  if (track) {
+    // create big output list
+    return Rcpp::List::create(
+      Rcpp::Named("D")        = D, 
+      Rcpp::Named("J")        = J, 
+      Rcpp::Named("K")        = K, 
+      Rcpp::Named("N")        = N, 
+      Rcpp::Named("mu_0")     = mu_0, 
+      Rcpp::Named("alpha_j")  = alpha_j, 
+      Rcpp::Named("beta_k")   = beta_k, 
+      Rcpp::Named("sigma_k")  = scale_k, 
+      Rcpp::Named("z")        = new_z + 1, 
+      Rcpp::Named("p_jk")     = p_jk, 
+      Rcpp::Named("like_1")   = like_1, 
+      Rcpp::Named("like_2")   = like_2,
+      Rcpp::Named("track_alpha_j")  = track_alpha_j, 
+      Rcpp::Named("track_beta_k")   = track_beta_k, 
+      Rcpp::Named("track_sigma_k")  = track_scale_k,
+      Rcpp::Named("track_p_jk")     = track_p_jk
+    );
+  } else {
+    // create big output list
+    return Rcpp::List::create(
+      Rcpp::Named("D")        = D, 
+      Rcpp::Named("J")        = J, 
+      Rcpp::Named("K")        = K, 
+      Rcpp::Named("N")        = N, 
+      Rcpp::Named("mu_0")     = mu_0, 
+      Rcpp::Named("alpha_j")  = alpha_j, 
+      Rcpp::Named("beta_k")   = beta_k, 
+      Rcpp::Named("sigma_k")  = scale_k, 
+      Rcpp::Named("z")        = new_z + 1, 
+      Rcpp::Named("p_jk")     = p_jk, 
+      Rcpp::Named("like_1")   = like_1, 
+      Rcpp::Named("like_2")   = like_2
+    );
+  }
 }

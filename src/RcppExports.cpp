@@ -25,8 +25,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // fit_sampleQC_robust_cpp
-List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters);
-RcppExport SEXP _SampleQC_fit_sampleQC_robust_cpp(SEXP xSEXP, SEXP init_zSEXP, SEXP groupsSEXP, SEXP DSEXP, SEXP JSEXP, SEXP KSEXP, SEXP NSEXP, SEXP em_itersSEXP, SEXP mcd_alphaSEXP, SEXP mcd_itersSEXP) {
+List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, bool track);
+RcppExport SEXP _SampleQC_fit_sampleQC_robust_cpp(SEXP xSEXP, SEXP init_zSEXP, SEXP groupsSEXP, SEXP DSEXP, SEXP JSEXP, SEXP KSEXP, SEXP NSEXP, SEXP em_itersSEXP, SEXP mcd_alphaSEXP, SEXP mcd_itersSEXP, SEXP trackSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -40,7 +40,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type em_iters(em_itersSEXP);
     Rcpp::traits::input_parameter< double >::type mcd_alpha(mcd_alphaSEXP);
     Rcpp::traits::input_parameter< int >::type mcd_iters(mcd_itersSEXP);
-    rcpp_result_gen = Rcpp::wrap(fit_sampleQC_robust_cpp(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters));
+    Rcpp::traits::input_parameter< bool >::type track(trackSEXP);
+    rcpp_result_gen = Rcpp::wrap(fit_sampleQC_robust_cpp(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, track));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -111,6 +112,30 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
     Rcpp::traits::input_parameter< arma::uvec >::type idx(idxSEXP);
     rcpp_result_gen = Rcpp::wrap(reorder_matrix_cols(x, idx));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reorder_cube_rows
+arma::cube reorder_cube_rows(arma::cube x, arma::uvec idx);
+RcppExport SEXP _SampleQC_reorder_cube_rows(SEXP xSEXP, SEXP idxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type idx(idxSEXP);
+    rcpp_result_gen = Rcpp::wrap(reorder_cube_rows(x, idx));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reorder_cube_cols
+arma::cube reorder_cube_cols(arma::cube x, arma::uvec idx);
+RcppExport SEXP _SampleQC_reorder_cube_cols(SEXP xSEXP, SEXP idxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type idx(idxSEXP);
+    rcpp_result_gen = Rcpp::wrap(reorder_cube_cols(x, idx));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -186,13 +211,15 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_SampleQC_fit_sampleQC_mle_cpp", (DL_FUNC) &_SampleQC_fit_sampleQC_mle_cpp, 8},
-    {"_SampleQC_fit_sampleQC_robust_cpp", (DL_FUNC) &_SampleQC_fit_sampleQC_robust_cpp, 10},
+    {"_SampleQC_fit_sampleQC_robust_cpp", (DL_FUNC) &_SampleQC_fit_sampleQC_robust_cpp, 11},
     {"_SampleQC_print_vector", (DL_FUNC) &_SampleQC_print_vector, 2},
     {"_SampleQC_print_matrix", (DL_FUNC) &_SampleQC_print_matrix, 3},
     {"_SampleQC_print_ivector", (DL_FUNC) &_SampleQC_print_ivector, 2},
     {"_SampleQC_reorder_vector", (DL_FUNC) &_SampleQC_reorder_vector, 2},
     {"_SampleQC_reorder_matrix_rows", (DL_FUNC) &_SampleQC_reorder_matrix_rows, 2},
     {"_SampleQC_reorder_matrix_cols", (DL_FUNC) &_SampleQC_reorder_matrix_cols, 2},
+    {"_SampleQC_reorder_cube_rows", (DL_FUNC) &_SampleQC_reorder_cube_rows, 2},
+    {"_SampleQC_reorder_cube_cols", (DL_FUNC) &_SampleQC_reorder_cube_cols, 2},
     {"_SampleQC_reorder_cube_slices", (DL_FUNC) &_SampleQC_reorder_cube_slices, 2},
     {"_SampleQC_centre_x", (DL_FUNC) &_SampleQC_centre_x, 4},
     {"_SampleQC_init_alpha_j", (DL_FUNC) &_SampleQC_init_alpha_j, 5},
