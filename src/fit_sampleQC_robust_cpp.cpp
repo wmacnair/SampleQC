@@ -517,6 +517,7 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
   }
 
   if (track) {
+    Rprintf("\ncreating tracking output");
     // create big output list
     return Rcpp::List::create(
       Rcpp::Named("D")        = D, 

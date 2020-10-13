@@ -4,7 +4,7 @@
 \alias{get_outliers}
 \title{Extracts list of outliers}
 \usage{
-get_outliers(qc_obj, exc_groups = NULL, exc_clusters)
+get_outliers(qc_obj, exc_groups = NULL, exc_clusters = NULL)
 }
 \arguments{
 \item{qc_obj}{Output from fit_sampleQC}
