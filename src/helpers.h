@@ -9,6 +9,8 @@ void print_ivector(arma::uvec vec, const char* vec_name);
 arma::vec reorder_vector(arma::vec x, arma::uvec idx);
 arma::mat reorder_matrix_rows(arma::mat x, arma::uvec idx);
 arma::mat reorder_matrix_cols(arma::mat x, arma::uvec idx);
+arma::cube reorder_cube_rows(arma::cube x, arma::uvec idx);
+arma::cube reorder_cube_cols(arma::cube x, arma::uvec idx);
 arma::cube reorder_cube_slices(arma::cube x, arma::uvec idx);
 
 // initialization functions

@@ -5,8 +5,8 @@ fit_sampleQC_mle_cpp <- function(x, init_gamma_i, groups, D, J, K, N, n_iter) {
     .Call(`_SampleQC_fit_sampleQC_mle_cpp`, x, init_gamma_i, groups, D, J, K, N, n_iter)
 }
 
-fit_sampleQC_robust_cpp <- function(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters) {
-    .Call(`_SampleQC_fit_sampleQC_robust_cpp`, x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters)
+fit_sampleQC_robust_cpp <- function(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, track = FALSE) {
+    .Call(`_SampleQC_fit_sampleQC_robust_cpp`, x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, track)
 }
 
 print_vector <- function(vec, vec_name) {
@@ -31,6 +31,14 @@ reorder_matrix_rows <- function(x, idx) {
 
 reorder_matrix_cols <- function(x, idx) {
     .Call(`_SampleQC_reorder_matrix_cols`, x, idx)
+}
+
+reorder_cube_rows <- function(x, idx) {
+    .Call(`_SampleQC_reorder_cube_rows`, x, idx)
+}
+
+reorder_cube_cols <- function(x, idx) {
+    .Call(`_SampleQC_reorder_cube_cols`, x, idx)
 }
 
 reorder_cube_slices <- function(x, idx) {
