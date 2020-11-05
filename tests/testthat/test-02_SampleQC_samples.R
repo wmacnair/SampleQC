@@ -47,3 +47,7 @@ test_that("automatic handling of annot_disc, annot_continuous", {
     expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'annot_1', 'N_cat', 'mito_cat', 'counts_cat'))
     expect_equal(metadata(qc_obj)$annots$cont, c('log_N', 'med_mito', 'med_counts'))
 })
+
+test_that("MMD seeds should be replicable", {
+    # related to Simone's comment
+})

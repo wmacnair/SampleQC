@@ -292,7 +292,7 @@ make_SampleQC_report <- function(qc_obj, save_dir, proj_name) {
         package="SampleQC")
     message('rendering ')
     tryCatch({
-        render(tmplt_file, output_file=report_file, output_dir=save_dir)
+        render(tmplt_file, output_file=report_file, output_dir=save_dir, quiet=TRUE)
     }, error=function(cond) {
         message("Something went wrong with rendering your report :/")
         message("Here's the original error message:")

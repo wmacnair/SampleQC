@@ -475,7 +475,7 @@ plot_embeddings <- function(qc_obj, var_type=c('discrete', 'continuous'),
     # restrict to chosen embedding
     if (var_type == 'discrete') {
         n_cols      = length(unique(plot_dt[[v]]))
-        if (v %in% c('mito_cat', 'N_cat', 'counts_cat')) {
+        if (v %in% c('mito_cat', 'N_cat', 'counts_cat', 'totals_cat')) {
             if (n_cols < 3)
                 col_vals    = rev(brewer.pal(n_cols, 'PiYG'))[c(1,3)]
             else
@@ -484,7 +484,7 @@ plot_embeddings <- function(qc_obj, var_type=c('discrete', 'continuous'),
             col_vals    = .CLUSTER_COLS
         }
         # for N_cat, reverse order
-        if ( v %in% c('N_cat', 'counts_cat') )
+        if ( v %in% c('N_cat', 'counts_cat', 'totals_cat') )
             col_vals    = rev(col_vals)
 
         g = ggplot(plot_dt) + 
