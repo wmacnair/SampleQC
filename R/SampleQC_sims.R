@@ -604,23 +604,28 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return ?
 #' @keyword internal
 .draw_delta_jk <- function(D, J, K) {
-    # delta_jk ~ MVN
-    delta_0         = matrix(c(0, 0, 0), nrow=1)
-    corr_mat        = diag(D)
-    corr_mat[1,2]   = 0.95
-    corr_mat[1,3]   = -0.6
-    corr_mat[2,3]   = -0.7
-    corr_mat        = corr_mat + t(corr_mat)
-    diag(corr_mat)  = 1
+    if (TRUE) {
+        # delta_jk ~ MVN
+        delta_0         = matrix(c(0, 0, 0), nrow=1)
+        corr_mat        = diag(D)
+        corr_mat[1,2]   = 0.95
+        corr_mat[1,3]   = -0.6
+        corr_mat[2,3]   = -0.7
+        corr_mat        = corr_mat + t(corr_mat)
+        diag(corr_mat)  = 1
 
-    assert_that( all(eigen(corr_mat)$values > 0) )
+        assert_that( all(eigen(corr_mat)$values > 0) )
 
-    delta_jk_sd     = c(0.05, 0.05, 0.05)
-    Sigma           = diag(delta_jk_sd) %*% corr_mat %*% diag(delta_jk_sd)
+        delta_jk_sd     = c(0.05, 0.05, 0.05)
+        Sigma           = diag(delta_jk_sd) %*% corr_mat %*% diag(delta_jk_sd)
 
-    # simulate delta_j, centre
-    delta_jk        = rmvnorm(J*K, mean=delta_0, sigma=Sigma) %>%
-        sweep(2, colMeans(.), "-")
+        # simulate delta_j, centre
+        delta_jk        = rmvnorm(J*K, mean=delta_0, sigma=Sigma) %>%
+            sweep(2, colMeans(.), "-")        
+    } else {
+        # just do zeros
+        delta_jk        = matrix(0, nrow=J*K, ncol=D)
+    }
 
     # check outputs
     assert_that( ncol(delta_jk) == D, 

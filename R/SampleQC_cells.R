@@ -204,7 +204,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
 
     # initialize via GMM over whole dataset
     message('fitting GMM to subset for initialization')
-    model_spec  = "VVV"
+    model_spec  = "EVE"
     sample_idx  = sample(N, min(N, 1e4))
     x_sample    = x_centred[sample_idx, ]
     mclust_obj  = mclustBIC(
@@ -235,7 +235,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         message('running robust EM algorithm')
         fit_obj = fit_sampleQC_robust_cpp(
             x, init_z, groups_0, D, J, K, N, 
-            em_iters, mcd_alpha, mcd_iters
+            em_iters, mcd_alpha, mcd_iters, track
             )
 
     } else if (method == 'mle') {
