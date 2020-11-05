@@ -11,6 +11,7 @@
 #' SampleQC_sims.R
 #' Complex simulations of good and bad quality cells
 
+#' @rdname sim_experiment
 #' Simulates QC metrics for whole experiment
 #' 
 #' @param n_groups How many sample groups?
@@ -70,7 +71,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(sims_list)
 }
 
-#' @rdname .draw_expt_params
+#' @noRd .draw_expt_params
 #' @title Draws experiment-level parameters
 #' 
 #' @param n_groups Number of sample groups, each of which is composed of 
@@ -86,7 +87,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return list of parameters
-#' @keyword internal
+#' @keywords internal
 .draw_expt_params <- function(n_groups, n_cells, cells_p_s, D, K, qc_names) {
     # label groups
     group_names = sprintf('QC%01d', seq_len(n_groups))
@@ -141,7 +142,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(expt_params)
 }
 
-#' @rdname .draw_mu_0
+#' @noRd .draw_mu_0
 #' @title Draws centre of sample group
 #' 
 #' @param D number of dimensions
@@ -152,7 +153,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return vector of D columns
-#' @keyword internal
+#' @keywords internal
 .draw_mu_0s <- function(D, n_groups) {
     # alpha_j ~ MVN
     mu_0_0          = matrix(
@@ -199,7 +200,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(mu_0s)
 }
 
-#' @rdname .draw_beta_k
+#' @noRd .draw_beta_k
 #' @title Draws random parameters for mixture model components
 #' 
 #' @param D number of dimensions
@@ -211,7 +212,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return ?
-#' @keyword internal
+#' @keywords internal
 .draw_beta_k <- function(D, K) {
     # beta_k ~ MVN, based on real data
     beta_0          = matrix(c(0, 0, 0), nrow=1)
@@ -250,7 +251,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(beta_k)
 }
 
-#' @rdname .draw_Sigma_k
+#' @noRd .draw_Sigma_k
 #' @title Draws random parameters for mixture model covariances
 #' 
 #' @param D number of dimensions
@@ -261,7 +262,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return ?
-#' @keyword internal
+#' @keywords internal
 .draw_Sigma_k <- function(D, K) {
     # define scale function for Wishart distn
     # (based on real data)
@@ -310,7 +311,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(Sigma_k)
 }
 
-#' @rdname .draw_sel_ks
+#' @noRd .draw_sel_ks
 #' @title Determines which components are observed in each sample group
 #' 
 #' @param K number of components
@@ -321,7 +322,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #'
 #' @return matrix of 0s and 1s, where rows correspond to sample groups, and
 #' columns correspond to components.
-#' @keyword internal
+#' @keywords internal
 .draw_sel_ks <- function(K, n_groups) {
     # keep drawing until every sample group has at least one component
     sel_ks  = matrix(0, ncol=K, nrow=n_groups)
@@ -356,7 +357,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(sel_ks)
 }
 
-#' @rdname .draw_p_out_0s
+#' @noRd .draw_p_out_0s
 #' @title Sample group-level probabilities of cells being outliers
 #' 
 #' @param n_groups number of sample groups
@@ -364,7 +365,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return vector of probabilities, one for each sample group
-#' @keyword internal
+#' @keywords internal
 .draw_p_out_0s <- function(n_groups) {
     # sample startpoints
     p_out_00    = 0.08
@@ -385,7 +386,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(p_out_0s)
 }
 
-#' @rdname .draw_theta_0s
+#' @noRd .draw_theta_0s
 #' @title Sample group-level probabilities of cells being outliers
 #' 
 #' @param n_groups number of sample groups
@@ -393,7 +394,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return vector of theta values for beta-binomial distributions, one for each sample group
-#' @keyword internal
+#' @keywords internal
 .draw_theta_0s <- function(n_groups) {
     # sample startpoints
     theta_00    = 4
@@ -409,7 +410,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(theta_0s)
 }
 
-#' @rdname .draw_p_loss_0s
+#' @noRd .draw_p_loss_0s
 #' @title Sample group-level probabilities of reads being lost in outlier cells
 #' 
 #' @param n_groups number of sample groups
@@ -417,7 +418,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return vector of probabilities, one for each sample group
-#' @keyword internal
+#' @keywords internal
 .draw_p_loss_0s <- function(n_groups) {
     # sample startpoints
     p_loss_0s   = plogis(qlogis(0.5) + 0.5 * rnorm(n_groups))
@@ -436,7 +437,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(p_loss_0s)
 }
 
-#' @rdname .sim_sample_group
+#' @noRd .sim_sample_group
 #' @title Simulates QC metrics for one group of samples
 #' 
 #' @param D number of dimensions
@@ -452,7 +453,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return list with two entries:
 #' - \code{qc_dt}, a \code{\link[data.table]{data.table}}
 #' - \code{params}, a list specifying the true parameter values for this group
-#' @keyword internal
+#' @keywords internal
 .sim_sample_group <- function(N, D, J, K, 
     mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0) {
 
@@ -505,7 +506,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(data_list)
 }
 
-#' @rdname .draw_samples
+#' @noRd .draw_samples
 #' @title Randomly splits up N cells into J samples with different sizes
 #' 
 #' @param J number of samples
@@ -514,7 +515,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return vector of samples
-#' @keyword internal
+#' @keywords internal
 .draw_samples <- function(J, N) {
     # generate samples
     j_weights   = exp(rnorm(J)/2)
@@ -531,7 +532,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(samples)
 }
 
-#' @rdname .draw_dir_0
+#' @noRd .draw_dir_0
 #' @title Determines Dirichlet parameter for p_jk draws
 #' 
 #' @param K number of components
@@ -539,7 +540,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return vector of K columns
-#' @keyword internal
+#' @keywords internal
 .draw_dir_0 <- function(K) {
     alpha       = 5
     dir_0       = rep(alpha, K)
@@ -549,7 +550,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(dir_0)
 }
 
-#' @rdname .draw_alpha_j
+#' @noRd .draw_alpha_j
 #' @title Draws random parameters for sample shifts
 #' 
 #' @param D number of dimensions
@@ -561,7 +562,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return matrix of J rows by D columns
-#' @keyword internal
+#' @keywords internal
 .draw_alpha_j <- function(D, J) {
     # alpha_j ~ MVN, based on real data
     alpha_0         = matrix(c(0, 0, 0), nrow=1)
@@ -590,7 +591,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(alpha_j)
 }
 
-#' @rdname .draw_delta_jk
+#' @noRd .draw_delta_jk
 #' @title Draws random parameters for mixture model components
 #' 
 #' @param D number of components
@@ -602,7 +603,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return ?
-#' @keyword internal
+#' @keywords internal
 .draw_delta_jk <- function(D, J, K) {
     if (TRUE) {
         # delta_jk ~ MVN
@@ -638,7 +639,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(delta_jk)
 }
 
-#' @rdname .draw_p_jk
+#' @noRd .draw_p_jk
 #' @title Draws random parameters for mixing parameters
 #' 
 #' @param J number of samples
@@ -650,7 +651,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom gtools rdirichlet
 #'
 #' @return ?
-#' @keyword internal
+#' @keywords internal
 .draw_p_jk <- function(J, K, dir_0) {
     # for each group, sample p_jk
     p_jk        = matrix(NA, J, K)
@@ -662,7 +663,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(p_jk)
 }
 
-#' @rdname .draw_z
+#' @noRd .draw_z
 #' @title Draws latent true component for each cell
 #' 
 #' @param samples sample indices
@@ -675,7 +676,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom data.table data.table
 #'
 #' @return ?
-#' @keyword internal
+#' @keywords internal
 .draw_z <- function(samples, p_jk, N, J, K) {
     z           = matrix(NA, N, 1)
     k_vals      = seq_len(K)
@@ -688,7 +689,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(z)
 }
 
-#' @rdname .draw_params_outliers
+#' @noRd .draw_params_outliers
 #' @title Draws random parameters to determine how to do outliers
 #' 
 #' @param J number of samples
@@ -698,7 +699,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return \code{matrix} with rows corresponding to samples
 #' col 1 is \code{p_out}, proportion of each sample which is an outlier
 #' col 2 is \code{p_lost}, mean proportion of non-mito counts lost in outliers
-#' @keyword internal
+#' @keywords internal
 .draw_out_j <- function(J, p_out_0, theta_0, p_loss_0) {
     # allow outlier fraction to vary by sample (p_out)
     p_out       = rbeta(J, shape1=theta_0 * p_out_0, theta_0 * (1-p_out_0))
@@ -713,7 +714,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(out_j)
 }
 
-#' @rdname .draw_outliers
+#' @noRd .draw_outliers
 #' @title Which cells are outliers?
 #' 
 #' @param samples sample indices
@@ -723,7 +724,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%" set_colnames
 #'
 #' @return vector of outlier status
-#' @keyword internal
+#' @keywords internal
 .draw_outliers <- function(samples, out_j, N) {
     # extract outlier proportions
     p_out       = out_j[, 'p_out']
@@ -732,7 +733,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(outliers)
 }
 
-#' @rdname .sim_ok_cells
+#' @noRd .sim_ok_cells
 #' @title Simulates healthy cells
 #' x | z = k ~ MVN( mu_0 + alpha_j + beta_k + delta_jk, Sigma_k)
 #' z | J = j ~ p_jk
@@ -748,7 +749,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return ?
-#' @keyword internal
+#' @keywords internal
 .sim_ok_cells <- function(z, samples, 
     mu_0, alpha_j, beta_k, Sigma_k, delta_jk, 
     N, D, K, J) {
@@ -782,7 +783,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(x)
 }
 
-#' @rdname .sim_outliers
+#' @noRd .sim_outliers
 #' @title Simulates outliers from ok cells
 #' within each sample, downsample non-mito
 #' then recalculate metrics
@@ -799,7 +800,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom magrittr "%>%"
 #'
 #' @return \code{matrix} of cell QC metrics including outliers
-#' @keyword internal
+#' @keywords internal
 .sim_outliers <- function(x_ok, samples, outliers, out_j, J) {
     # sample x
     x_out   = copy(x_ok)
@@ -840,7 +841,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(x_out)
 }
 
-#' @rdname .process_outputs
+#' @noRd .process_outputs
 #' @title Gathers results simulated for individual sample groups together into
 #' results for a whole experiment. Results for individual sample groups are 
 #' returned. 
@@ -854,7 +855,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom assertthat assert_that
 #'
 #' @return \code{list} of outputs
-#' @keyword internal
+#' @keywords internal
 .process_outputs <- function(group_sims, expt_params) {
     # define some useful things
     groups_idx      = seq_len(expt_params$n_groups)
@@ -927,7 +928,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #'
 #' @importFrom data.table data.table rbindlist ":="
 #' @return data.frame
-#' @keyword internal
+#' @keywords internal
 .make_toy_qc_df <- function() {
     # generate sample means
     J               = 10
@@ -969,7 +970,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #'
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @return sce
-#' @keyword internal
+#' @keywords internal
 .make_toy_sce <- function() {
     # generate sample_ids
     J               = 10
