@@ -189,14 +189,15 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 #' this number
 #' @param sigma Scale for MMD kernel (defaults to length of qc_names)
 #' @param n_cores How many cores to parallelize over
+#' @param bp_seed random seed for BiocParallel workers
 #'
-#' @importFrom parallel mclapply
+#' @importFrom BiocParallel bplapply SerialParam MulticoreParam bpstart bpstop
 #' @importFrom data.table data.table dcast
 #' @importFrom magrittr "%>%" set_rownames
 #' 
 #' @return matrix of MMD values
 #' @keywords internal
-.calc_mmd_mat <- function(sample_list, mat_list, n_times, subsample, sigma, n_cores) {
+.calc_mmd_mat <- function(sample_list, mat_list, n_times, subsample, sigma, n_cores, bp_seed=22) {
     # define combns to do
     ij_grid     = expand.grid(
         sample_i=factor(sample_list), 
@@ -205,11 +206,18 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     ij_grid     = ij_grid[ as.integer(ij_grid$sample_i) < 
         as.integer(ij_grid$sample_j), ]
 
+    # define parallelization
+    if (n_cores == 1) {
+        bpparam = SerialParam()
+    } else {
+        bpparam = MulticoreParam(workers=n_cores, RNGseed=bp_seed )
+    }
     # iterate through them
     n_combns    = nrow(ij_grid)
     message('  calculating ', n_combns, 
         ' sample-sample MMDs (. = 20, one row ~= 1000):\n  ', appendLF=FALSE)
-    mmd_means   = mclapply(
+    bpstart(bpparam)
+    mmd_means   = bplapply(
         seq_len(n_combns), function(r) {
             if( (r%%20) == 0 )
                 message(".", appendLF=FALSE)
@@ -227,8 +235,9 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
                 function(z) return(.dist_fn(mat_i, mat_j, subsample, sigma)), 
                 numeric(1))
             return(mean(mmd_vec))
-        }, mc.cores=n_cores)
+        }, BPPARAM=bpparam)
     message("\n", appendLF=FALSE)
+    bpstop(bpparam)
 
     # put into data.table, add reverse versions
     mmd_dt      = data.table(ij_grid, mmd_mean=unlist(mmd_means))

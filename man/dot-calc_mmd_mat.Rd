@@ -4,7 +4,15 @@
 \alias{.calc_mmd_mat}
 \title{Calculates mean MMD distances between all pairs of samples}
 \usage{
-.calc_mmd_mat(sample_list, mat_list, n_times, subsample, sigma, n_cores)
+.calc_mmd_mat(
+  sample_list,
+  mat_list,
+  n_times,
+  subsample,
+  sigma,
+  n_cores,
+  bp_seed = 22
+)
 }
 \arguments{
 \item{sample_list}{List of samples to iterate through}
@@ -20,6 +28,8 @@ this number}
 \item{sigma}{Scale for MMD kernel (defaults to length of qc_names)}
 
 \item{n_cores}{How many cores to parallelize over}
+
+\item{bp_seed}{random seed for BiocParallel workers}
 }
 \value{
 matrix of MMD values

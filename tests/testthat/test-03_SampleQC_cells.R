@@ -23,7 +23,7 @@ annot_disc  = c('annot_1')
 qc_obj      = calculate_sample_to_sample_MMDs(qc_dt, qc_names, subsample=20, n_times=5, n_cores=1)
 
 # define K_list
-K_list      = rep(1, metadata(qc_obj)$n_groups)
+K_list      = rep(1, get_n_groups(qc_obj))
 
 ################
 # tests

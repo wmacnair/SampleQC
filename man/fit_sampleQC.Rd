@@ -14,12 +14,13 @@ fit_sampleQC(
   qc_obj,
   K_all = NULL,
   K_list = NULL,
-  n_cores,
+  n_cores = NULL,
   alpha = 0.01,
   em_iters = 50,
   mcd_alpha = 0.5,
   mcd_iters = 50,
   method = c("robust", "mle"),
+  bp_seed = 22,
   track = FALSE
 )
 }
@@ -45,6 +46,8 @@ K_list is set, n_cores=length(K_list).}
 means and covariances}
 
 \item{method}{Which of various implemented options should be used?}
+
+\item{bp_seed}{random seed for BiocParallel workers}
 
 \item{track}{Track values of parameters during fitting (used for debugging)}
 }

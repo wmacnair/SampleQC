@@ -25,6 +25,7 @@
 #' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype 
 #' means and covariances
 #' @param method Which of various implemented options should be used?
+#' @param bp_seed random seed for BiocParallel workers
 #' @param track Track values of parameters during fitting (used for debugging)
 #' 
 #' @section Details:
@@ -41,12 +42,13 @@
 #' @importFrom magrittr "%>%"
 #' @importFrom mclust mclustBIC
 #' @importFrom data.table setkey copy ":="
+#' @importFrom BiocParallel bplapply SerialParam MulticoreParam bpstart bpstop
 #'
 #' @return list, containing MMD values and sample clusters based on MMD values
 #' @export
-fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores, 
+fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL, 
     alpha=0.01, em_iters=50, mcd_alpha=0.5, mcd_iters=50, 
-    method=c('robust', 'mle'), track=FALSE) {
+    method=c('robust', 'mle'), bp_seed=22, track=FALSE) {
     # check some inputs
     .check_is_qc_obj(qc_obj)
     method      = match.arg(method)
@@ -62,13 +64,23 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
         # put in correct order
         df_list     = df_list[ metadata(qc_obj)$group_list ]
 
+        # define parallelization
+        if (fit_params$n_cores == 1) {
+            bpparam = SerialParam()
+        } else {
+            bpparam = MulticoreParam(workers=fit_params$n_cores, 
+                RNGseed=bp_seed )
+        }
+
         # fit each sample group
-        fit_list    = mclapply(
+        bpstart(bpparam)
+        fit_list    = bplapply(
             seq_along(df_list), 
             function(i)
                 .fit_one_sampleQC(df_list[[i]], K_list[[i]], fit_params), 
-            mc.cores=fit_params$n_cores)
+                BPPARAM=bpparam)
         names(fit_list) = metadata(qc_obj)$group_list
+        bpstart(bpstop)
     } else {
         # fit one model to all samples
         df          = colData(qc_obj)
@@ -84,7 +96,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
 
 #' Checks that the parameters specified are ok
 #' 
-#' @importFrom assertthat assert_that is.flag
+#' @importFrom assertthat assert_that is.flag is.count
 #' @importFrom S4Vectors metadata
 #' 
 #' @keyword internal
@@ -129,8 +141,11 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores,
     }
     # check inputs
     if (do_list) {
-        if (missing(n_cores))
-            n_cores     = length(K_list)        
+        if (is.null(n_cores)) {
+            n_cores     = length(K_list)
+        } else {
+            assert_that( is.count(n_cores) )
+        }
     } else {
         n_cores     = 1
     }

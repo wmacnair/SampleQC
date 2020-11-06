@@ -1,6 +1,7 @@
 context("Sample-level functions")
 # pkg_dir     = '/home/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
+# devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-02_SampleQC_samples.R'))
 
 ################
 # set up
@@ -49,5 +50,26 @@ test_that("automatic handling of annot_disc, annot_continuous", {
 })
 
 test_that("MMD seeds should be replicable", {
-    # related to Simone's comment
+    # see Simone's comment
+    sample_list     = sort(unique(qc_dt$sample_id))
+    n_samples       = length(sample_list)
+    centre_samples  = TRUE
+    scale_samples   = FALSE
+    n_times         = 10
+    n_cores         = 2
+    sigma           = 3
+    subsample       = 100
+
+    # split qc metric values into one matrix per sample
+    mat_list    = .calc_mat_list(qc_dt, qc_names, sample_list,
+        centre_samples, scale_samples)
+
+    # do it once
+    set.seed(123)
+    mmds_1      = .calc_mmd_mat(sample_list, mat_list,
+        n_times, subsample, sigma, n_cores)
+    set.seed(123)
+    mmds_2      = .calc_mmd_mat(sample_list, mat_list,
+        n_times, subsample, sigma, n_cores)
+    expect_equal(mmds_1, mmds_1)
 })
