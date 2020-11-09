@@ -1,14 +1,38 @@
 # SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
 # for single cell RNA-seq
-#' devtools::load_all('~/work/packages/BayesQC')
-#' devtools::document('~/work/packages/BayesQC')
+# SampleQC_cells.R
+# Code to identify outlier cells within sample groups identified by code
+# in SampleQC_samples. Includes plots of outputs, and plots of fitted 
+# statistics
 
-#' SampleQC_cells.R
-#' Code to identify outlier cells within sample groups identified by code
-#' in SampleQC_samples. Includes plots of outputs, and plots of fitted 
-#' statistics
+# devtools::load_all('~/work/packages/SampleQC')
+# devtools::document('~/work/packages/SampleQC')
 
 #' Fits `SampleQC` model to one cluster of samples
+#' 
+#' @description 
+#' Running \code{\link{calculate_sample_to_sample_MMDs()}} identifies groups 
+#' of samples with similar distributions of QC metrics ('sample groups'). 
+#' \code{\link{SampleQC}} then fits a multivariate Gaussian mixture model to 
+#' each sample group, and uses these distributions to determine outlier cells
+#' without celltype bias.
+#'
+#' @details
+#' Determining the number of components to use in a Gaussian mixture model is 
+#' a hard problem that \code{\link{SampleQC}} does not attempt to solve. 
+#' However, \code{\link{SampleQC}} provides diagnostic plots that assist the 
+#' user to make this decision themself. 
+#' 
+#' We recommend the following workflow. The first step is always to identify 
+#' sample groups (and derive embeddings) by calling 
+#' \code{\link{calculate_sample_to_sample_MMDs}}. Next, we recommend calling 
+#' \code{\link{fit_sampleQC}} with \code{K_list=rep(1, get_n_groups(qc_obj)))},
+#' then rendering outputs with \code{make_SampleQC_report(qc_obj, save_dir, 
+#' 'test')}. This fits the simplest possible model to each sample group (i.e. 
+#' one component), and renders a report with biaxial plots. 
+#' 
+#' The user can then use the biaxial plots to determine how many components 
+#' are appropriate for each sample group. So if 
 #' 
 #' @param qc_obj Output from calculate_sample_to_sample_MMDs
 #' @param K_all,K_list How many QC celltypes do we expect? Exactly one of K_all
@@ -23,20 +47,15 @@
 #' @param alpha Chi squared threshold to define outliers
 #' @param em_iters Maximum number of EM iterations
 #' @param mcd_alpha,mcd_iters Parameters for robust estimation of celltype 
-#' means and covariances
-#' @param method Which of various implemented options should be used?
+#' means and covariances. \emph{mcd_alpha} is the proportion of the data which 
+#' the robust covariance estimator attempts to fit; adjust this to be lower 
+#' when more outliers are present. \emph{mcd_iters} is the maximum number of 
+#' iterations allowed for estimating the covariance matrix, and should only 
+#' rarely be hit.
+#' @param method Should the fitting be robust, or maximum likelihood 
+#' estimation? In general, robust should be used.
 #' @param bp_seed random seed for BiocParallel workers
 #' @param track Track values of parameters during fitting (used for debugging)
-#' 
-#' @section Details:
-#'
-#' [How to define K]
-#'
-#' [Start with `K_all=1`]
-#'
-#' [Add more details of K_all vs K_list?]
-#'
-#' [What difference do mcd parameters make?]
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
@@ -99,7 +118,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL,
 #' @importFrom assertthat assert_that is.flag is.count
 #' @importFrom S4Vectors metadata
 #' 
-#' @keyword internal
+#' @keywords internal
 .check_fit_params <- function(qc_obj, K_all, K_list, n_cores, 
     alpha, em_iters, mcd_alpha, mcd_iters, method, track) {
     # check specification of type of run is ok

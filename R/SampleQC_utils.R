@@ -1,15 +1,16 @@
 # SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
 # for single cell RNA-seq
-# devtools::load_all('~/work/packages/BayesQC')
-# devtools::document('~/work/packages/BayesQC')
-
 # SampleQC_utils.R
 # Miscellaneous useful functions 
 
+# devtools::load_all('~/work/packages/SampleQC')
+# devtools::document('~/work/packages/SampleQC')
 
-#' Extracts a data.table of QC metrics, either by calculating them from a 
-#' SingleCellExperiment object, or copying them from a data.frame that the
-#' user has already made. Also does a little bit of checking of the inputs.
+#' Makes data.table of specified QC metrics
+#' 
+#' Extracts a \code{data.table} of QC metrics, either by calculating them from 
+#' a SingleCellExperiment object, or copying them from a \code{data.frame} that 
+#' the user has already made. Also does a little bit of checking of the inputs.
 #' 
 #' WARNING: This bit of code definitely needs more testing / thought / 
 #' improvements... Please let me know if it falls over!
@@ -314,7 +315,7 @@ make_SampleQC_report <- function(qc_obj, save_dir, proj_name) {
 #' @importFrom SummarizedExperiment assays
 #' @return string saying progress
 #' 
-#' @keyword internal
+#' @keywords internal
 .check_is_qc_obj <- function(qc_obj) {
     # check is an sce
     assert_that(

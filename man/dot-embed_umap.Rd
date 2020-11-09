@@ -19,3 +19,4 @@ matrix of embedding
 Calculates non-linear embeddings of MMD distances calculated by
 calculate_sample_to_sample_MMDs
 }
+\keyword{internal}

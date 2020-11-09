@@ -1,13 +1,13 @@
 # SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
 # for single cell RNA-seq
-# devtools::load_all('~/work/packages/SampleQC')
-# devtools::document('~/work/packages/SampleQC')
-# debug(calculate_sample_to_sample_MMDs); qc_obj = calculate_sample_to_sample_MMDs(qc_dt, qc_names=qc_names, annots_disc=annots_disc, n_cores=16)
-
 # SampleQC_samples.R
 # Code to estimate multivariate dissimilarities between samples, and use
 # this to identify groups of clusters whose cell QC should be fit 
 # together.
+
+# devtools::load_all('~/work/packages/SampleQC')
+# devtools::document('~/work/packages/SampleQC')
+
 
 # excellent set of colours copied from the CATALYST package, here:
 # https://bioconductor.org/packages/release/bioc/html/CATALYST.html
@@ -19,24 +19,35 @@
     "#808000", "#aeae5c", "#1e90ff", "#00bfff", "#56ff0d", "#ffff00"
     )
 
-#' Calculates MMD distances between all samples in qc_dt object, then and 
-#' embeds them with some annotations.
+#' Calculates sample-to-sample MMD distances, clusters and embeds them
 #' 
-#' @param qc_dt Data.table of QC metrics for all cells and samples
+#' @description 
+#' Maximum mean discrepancy (MMD) is a method for measuring distances between 
+#' multivariate distributions. \emph{SampleQC} uses this to determine which 
+#' samples have similar distributions, and should therefore have the same 
+#' model fit to them. In addition
+#'
+#' @details 
+#' The most important variable to consider here is \emph{qc_names}, which 
+#' specifies the set of QC metrics that will be used both here and in later 
+#' steps. The default is to use log counts, log features and the logit 
+#' transformation of the mitochondrial proportion (under this transformation, 
+#' the distribution is reasonably modelled as a gaussian mixture model)
+#'
+#' @param qc_dt data.table of QC metrics for all cells and samples
 #' @param qc_names List of metrics to actually use for calculating 
 #' sample-to-sample distances
+#' @param annots_disc,annots_cont Which annotating variables should be added 
+#' to the SampleQC object? These should be entries in qc_dt. annots_disc 
+#' indicates discrete variables; annots_cont continuous variables.
+#' @param n_cores How many cores to parallelize over?
 #' @param sigma Scale for MMD kernel (defaults to length of qc_names)
-#' @param n_cores How many cores to parallelize over
 #' @param subsample Should we downsample the number of cells per sample to 
 #' this number
 #' @param n_times How many times do we sample MMD between each pair of samples?
 #' (if subsampled, MMD is a stochastic value)
 #' @param centre_samples,scale_samples Should we centre or scale the values 
 #' within each sample before calculating MMD?
-#' 
-#' @section Details:
-#' [Maximum mean discrepancy (MMD) ]
-#' [Why to centre and not scale]
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
@@ -210,19 +221,21 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     if (n_cores == 1) {
         bpparam = SerialParam()
     } else {
-        bpparam = MulticoreParam(workers=n_cores, RNGseed=bp_seed )
+        bpparam = MulticoreParam(workers=n_cores, RNGseed=bp_seed, 
+            progressbar=TRUE, tasks=50)
     }
     # iterate through them
     n_combns    = nrow(ij_grid)
     message('  calculating ', n_combns, 
-        ' sample-sample MMDs (. = 20, one row ~= 1000):\n  ', appendLF=FALSE)
+        ' sample-sample MMDs:')
+        # ' sample-sample MMDs (. = 20, one row ~= 1000):\n  ', appendLF=FALSE)
     bpstart(bpparam)
     mmd_means   = bplapply(
         seq_len(n_combns), function(r) {
-            if( (r%%20) == 0 )
-                message(".", appendLF=FALSE)
-            if( (r%%1000) == 0 )
-                message("\n  ", appendLF=FALSE)
+            # if( (r%%20) == 0 )
+            #     message(".", appendLF=FALSE)
+            # if( (r%%1000) == 0 )
+            #     message("\n  ", appendLF=FALSE)
             # prep
             sample_i    = as.character(ij_grid[r, 'sample_i'])
             sample_j    = as.character(ij_grid[r, 'sample_j'])
@@ -236,7 +249,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
                 numeric(1))
             return(mean(mmd_vec))
         }, BPPARAM=bpparam)
-    message("\n", appendLF=FALSE)
+    # message("\n", appendLF=FALSE)
     bpstop(bpparam)
 
     # put into data.table, add reverse versions
@@ -287,7 +300,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 
 #' Build igraph object from MMD matrix
 #' 
-#' @param mmd_mat
+#' @param mmd_mat matrix of MMD distances
 #' @param n_nhbrs How many neighbours in the NN graph
 #'
 #' @importFrom magrittr "%>%"
@@ -363,7 +376,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 #' @importFrom magrittr "%>%"
 #'
 #' @return matrix of embedding
-#' @keyword internal
+#' @keywords internal
 .embed_umap <- function(mmd_mat, n_nhbrs) {
     message('  calculating UMAP embedding')
 
@@ -389,12 +402,12 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 
 #' Checks annotation variables
 #' 
-#' @param qc_dt
+#' @param qc_dt \code{data.table} of QC metrics
 #' @param specified Requested annotation variables
 #' @param auto Automatically generated annotation variables
 #' 
 #' @return character vector
-#' @keyword internal
+#' @keywords internal
 .process_annot_vars <- function(qc_dt, specified, auto) {
     # warn about missing annotations
     dt_names        = colnames(qc_dt)

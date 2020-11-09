@@ -1,10 +1,10 @@
 # SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
 # for single cell RNA-seq
-#' devtools::load_all('~/work/packages/BayesQC')
-#' devtools::document('~/work/packages/BayesQC')
+# devtools::load_all('~/work/packages/SampleQC')
+# devtools::document('~/work/packages/SampleQC')
 
-#' SampleQC_setters_getters.R
-#' Utility functions to define and extract values from a \code{qc_obj}.
+# SampleQC_setters_getters.R
+# Utility functions to define and extract values from a \code{qc_obj}.
 
 #' Extracts number of groups
 #' 
@@ -28,7 +28,16 @@ get_n_groups <- function(qc_obj) {
 #' Extracts list of outliers
 #' 
 #' @param qc_obj Output from fit_sampleQC
-#' @param exc_groups List of sample groups to exclude
+#' @param exc_groups (optional) List of sample groups to exclude.
+#' @param exc_clusters (optional) List of clusters to exclude. This is 
+#' intended for use when there are groups of cells with sufficient numbers to 
+#' be modelled as a group by \code{SampleQC}, but the user wishes to exclude 
+#' them (for example, a large cluster of cells with extremely high mitochondrial 
+#' proportions). In this case, \code{\link{fit_sampleQC}} would identify these 
+#' as a valid celltype / mixture component and not outliers. Specifying 
+#' \code{exc_clusters} allows these to be removed, e.g. \code{exc_clusters=
+#' list(SG2=c(2,3))} would specify removing components 2 and 3 in sample group 
+#' SG2.
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"

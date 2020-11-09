@@ -431,6 +431,9 @@ double calc_log_likelihood(
   return loglike;
 }
 
+//' @title Robustly fits a multivariate Gaussian mixture model to given data
+//' 
+//' @keywords internal
 // [[Rcpp::export]]
 List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, bool track = false) {
   // declare required variables

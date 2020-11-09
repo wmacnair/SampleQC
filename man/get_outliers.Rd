@@ -9,7 +9,17 @@ get_outliers(qc_obj, exc_groups = NULL, exc_clusters = NULL)
 \arguments{
 \item{qc_obj}{Output from fit_sampleQC}
 
-\item{exc_groups}{List of sample groups to exclude}
+\item{exc_groups}{(optional) List of sample groups to exclude.}
+
+\item{exc_clusters}{(optional) List of clusters to exclude. This is
+intended for use when there are groups of cells with sufficient numbers to
+be modelled as a group by \code{SampleQC}, but the user wishes to exclude
+them (for example, a large cluster of cells with extremely high mitochondrial
+proportions). In this case, \code{\link{fit_sampleQC}} would identify these
+as a valid celltype / mixture component and not outliers. Specifying
+\code{exc_clusters} allows these to be removed, e.g. \code{exc_clusters=
+list(SG2=c(2,3))} would specify removing components 2 and 3 in sample group
+SG2.}
 }
 \value{
 \code{data.table} containing cell_id, sample_id and whether outlier

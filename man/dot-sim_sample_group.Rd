@@ -25,11 +25,7 @@
 \item{K}{number of components}
 }
 \value{
-list with two entries:
-\itemize{
-\item \code{qc_dt}, a \code{\link[data.table]{data.table}}
-\item \code{params}, a list specifying the true parameter values for this group
-}
+list with all parameters for this group
 }
 \description{
 Simulates QC metrics for one group of samples

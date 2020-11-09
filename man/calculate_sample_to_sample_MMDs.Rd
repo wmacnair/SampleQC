@@ -2,8 +2,7 @@
 % Please edit documentation in R/SampleQC_samples.R
 \name{calculate_sample_to_sample_MMDs}
 \alias{calculate_sample_to_sample_MMDs}
-\title{Calculates MMD distances between all samples in qc_dt object, then and
-embeds them with some annotations.}
+\title{Calculates sample-to-sample MMD distances, clusters and embeds them}
 \usage{
 calculate_sample_to_sample_MMDs(
   qc_dt,
@@ -19,12 +18,16 @@ calculate_sample_to_sample_MMDs(
 )
 }
 \arguments{
-\item{qc_dt}{Data.table of QC metrics for all cells and samples}
+\item{qc_dt}{data.table of QC metrics for all cells and samples}
 
 \item{qc_names}{List of metrics to actually use for calculating
 sample-to-sample distances}
 
-\item{n_cores}{How many cores to parallelize over}
+\item{annots_disc, annots_cont}{Which annotating variables should be added
+to the SampleQC object? These should be entries in qc_dt. annots_disc
+indicates discrete variables; annots_cont continuous variables.}
+
+\item{n_cores}{How many cores to parallelize over?}
 
 \item{sigma}{Scale for MMD kernel (defaults to length of qc_names)}
 
@@ -41,12 +44,15 @@ within each sample before calculating MMD?}
 slightly funky \code{sce} object
 }
 \description{
-Calculates MMD distances between all samples in qc_dt object, then and
-embeds them with some annotations.
+Maximum mean discrepancy (MMD) is a method for measuring distances between
+multivariate distributions. \emph{SampleQC} uses this to determine which
+samples have similar distributions, and should therefore have the same
+model fit to them. In addition
 }
-\section{Details}{
-
-\link{Maximum mean discrepancy (MMD) }
-\link{Why to centre and not scale}
+\details{
+The most important variable to consider here is \emph{qc_names}, which
+specifies the set of QC metrics that will be used both here and in later
+steps. The default is to use log counts, log features and the logit
+transformation of the mitochondrial proportion (under this transformation,
+the distribution is reasonably modelled as a gaussian mixture model)
 }
-

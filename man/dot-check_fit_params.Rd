@@ -20,3 +20,4 @@
 \description{
 Checks that the parameters specified are ok
 }
+\keyword{internal}

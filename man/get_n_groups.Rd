@@ -2,11 +2,7 @@
 % Please edit documentation in R/SampleQC_setters_getters.R
 \name{get_n_groups}
 \alias{get_n_groups}
-\title{devtools::load_all('~/work/packages/BayesQC')
-devtools::document('~/work/packages/BayesQC')
-SampleQC_setters_getters.R
-Utility functions to define and extract values from a \code{qc_obj}.
-Extracts number of groups}
+\title{Extracts number of groups}
 \usage{
 get_n_groups(qc_obj)
 }
@@ -17,9 +13,5 @@ get_n_groups(qc_obj)
 number of groups identified by \code{calculate_sample_to_sample_MMD}
 }
 \description{
-devtools::load_all('~/work/packages/BayesQC')
-devtools::document('~/work/packages/BayesQC')
-SampleQC_setters_getters.R
-Utility functions to define and extract values from a \code{qc_obj}.
 Extracts number of groups
 }

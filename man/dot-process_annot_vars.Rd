@@ -7,6 +7,8 @@
 .process_annot_vars(qc_dt, specified, auto)
 }
 \arguments{
+\item{qc_dt}{\code{data.table} of QC metrics}
+
 \item{specified}{Requested annotation variables}
 
 \item{auto}{Automatically generated annotation variables}
@@ -17,3 +19,4 @@ character vector
 \description{
 Checks annotation variables
 }
+\keyword{internal}

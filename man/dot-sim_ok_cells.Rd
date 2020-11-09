@@ -2,9 +2,7 @@
 % Please edit documentation in R/SampleQC_sims.R
 \name{.sim_ok_cells}
 \alias{.sim_ok_cells}
-\title{Simulates healthy cells
-x | z = k ~ MVN( mu_0 + alpha_j + beta_k + delta_jk, Sigma_k)
-z | J = j ~ p_jk}
+\title{Simulates healthy cells}
 \usage{
 .sim_ok_cells(z, samples, mu_0, alpha_j, beta_k, Sigma_k, delta_jk, N, D, K, J)
 }
@@ -21,7 +19,7 @@ z | J = j ~ p_jk}
 ?
 }
 \description{
-Simulates healthy cells
+Assumes the following distribution:
 x | z = k ~ MVN( mu_0 + alpha_j + beta_k + delta_jk, Sigma_k)
 z | J = j ~ p_jk
 }

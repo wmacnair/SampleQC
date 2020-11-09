@@ -2,9 +2,7 @@
 % Please edit documentation in R/SampleQC_utils.R
 \name{make_qc_dt}
 \alias{make_qc_dt}
-\title{Extracts a data.table of QC metrics, either by calculating them from a
-SingleCellExperiment object, or copying them from a data.frame that the
-user has already made. Also does a little bit of checking of the inputs.}
+\title{Makes data.table of specified QC metrics}
 \usage{
 make_qc_dt(x, qc_names = c("log_counts", "log_feats", "logit_mito"))
 }
@@ -17,6 +15,11 @@ make_qc_dt(x, qc_names = c("log_counts", "log_feats", "logit_mito"))
 qc_dt, a data.table containing the sample variable plus qc metrics
 }
 \description{
+Extracts a \code{data.table} of QC metrics, either by calculating them from
+a SingleCellExperiment object, or copying them from a \code{data.frame} that
+the user has already made. Also does a little bit of checking of the inputs.
+}
+\details{
 WARNING: This bit of code definitely needs more testing / thought /
 improvements... Please let me know if it falls over!
 }

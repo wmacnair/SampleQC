@@ -272,6 +272,9 @@ arma::mat extract_p_jk(arma::mat gamma_i, arma::uvec groups, int J, int K, int N
   return p_jk;
 }
 
+//' @title Fits a multivariate Gaussian mixture model to given data via MLE
+//' 
+//' @keywords internal
 // [[Rcpp::export]]
 List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups, int D, int J, int K, int N, int n_iter) {
   // declare required variables

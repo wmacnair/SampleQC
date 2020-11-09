@@ -2,7 +2,7 @@
 % Please edit documentation in R/SampleQC_sims.R
 \name{.draw_p_loss_0s}
 \alias{.draw_p_loss_0s}
-\title{Sample group-level probabilities of reads being lost in outlier cells}
+\title{Draws group-level probabilities of reads being lost in outlier cells}
 \usage{
 .draw_p_loss_0s(n_groups)
 }
@@ -13,6 +13,6 @@
 vector of probabilities, one for each sample group
 }
 \description{
-Sample group-level probabilities of reads being lost in outlier cells
+Draws group-level probabilities of reads being lost in outlier cells
 }
 \keyword{internal}

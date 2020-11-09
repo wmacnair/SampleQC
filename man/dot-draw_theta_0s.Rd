@@ -2,7 +2,7 @@
 % Please edit documentation in R/SampleQC_sims.R
 \name{.draw_theta_0s}
 \alias{.draw_theta_0s}
-\title{Sample group-level probabilities of cells being outliers}
+\title{Draws group-level probabilities of cells being outliers}
 \usage{
 .draw_theta_0s(n_groups)
 }
@@ -13,6 +13,6 @@
 vector of theta values for beta-binomial distributions, one for each sample group
 }
 \description{
-Sample group-level probabilities of cells being outliers
+Draws group-level probabilities of cells being outliers
 }
 \keyword{internal}

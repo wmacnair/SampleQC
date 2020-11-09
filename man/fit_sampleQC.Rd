@@ -2,13 +2,7 @@
 % Please edit documentation in R/SampleQC_cells.R
 \name{fit_sampleQC}
 \alias{fit_sampleQC}
-\title{devtools::load_all('~/work/packages/BayesQC')
-devtools::document('~/work/packages/BayesQC')
-SampleQC_cells.R
-Code to identify outlier cells within sample groups identified by code
-in SampleQC_samples. Includes plots of outputs, and plots of fitted
-statistics
-Fits \code{SampleQC} model to one cluster of samples}
+\title{Fits \code{SampleQC} model to one cluster of samples}
 \usage{
 fit_sampleQC(
   qc_obj,
@@ -43,9 +37,14 @@ K_list is set, n_cores=length(K_list).}
 \item{em_iters}{Maximum number of EM iterations}
 
 \item{mcd_alpha, mcd_iters}{Parameters for robust estimation of celltype
-means and covariances}
+means and covariances. \emph{mcd_alpha} is the proportion of the data which
+the robust covariance estimator attempts to fit; adjust this to be lower
+when more outliers are present. \emph{mcd_iters} is the maximum number of
+iterations allowed for estimating the covariance matrix, and should only
+rarely be hit.}
 
-\item{method}{Which of various implemented options should be used?}
+\item{method}{Should the fitting be robust, or maximum likelihood
+estimation? In general, robust should be used.}
 
 \item{bp_seed}{random seed for BiocParallel workers}
 
@@ -55,23 +54,26 @@ means and covariances}
 list, containing MMD values and sample clusters based on MMD values
 }
 \description{
-devtools::load_all('~/work/packages/BayesQC')
-devtools::document('~/work/packages/BayesQC')
-SampleQC_cells.R
-Code to identify outlier cells within sample groups identified by code
-in SampleQC_samples. Includes plots of outputs, and plots of fitted
-statistics
-Fits \code{SampleQC} model to one cluster of samples
+Running \code{\link{calculate_sample_to_sample_MMDs()}} identifies groups
+of samples with similar distributions of QC metrics ('sample groups').
+\code{\link{SampleQC}} then fits a multivariate Gaussian mixture model to
+each sample group, and uses these distributions to determine outlier cells
+without celltype bias.
 }
-\section{Details}{
+\details{
+Determining the number of components to use in a Gaussian mixture model is
+a hard problem that \code{\link{SampleQC}} does not attempt to solve.
+However, \code{\link{SampleQC}} provides diagnostic plots that assist the
+user to make this decision themself.
 
+We recommend the following workflow. The first step is always to identify
+sample groups (and derive embeddings) by calling
+\code{\link{calculate_sample_to_sample_MMDs}}. Next, we recommend calling
+\code{\link{fit_sampleQC}} with \code{K_list=rep(1, get_n_groups(qc_obj)))},
+then rendering outputs with \code{make_SampleQC_report(qc_obj, save_dir, 
+'test')}. This fits the simplest possible model to each sample group (i.e.
+one component), and renders a report with biaxial plots.
 
-\link{How to define K}
-
-\link[=Start with `K_all=1`]{Start with \code{K_all=1}}
-
-\link{Add more details of K_all vs K_list?}
-
-\link{What difference do mcd parameters make?}
+The user can then use the biaxial plots to determine how many components
+are appropriate for each sample group. So if
 }
-

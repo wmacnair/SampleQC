@@ -7,6 +7,8 @@
 .make_mmd_graph(mmd_mat, n_nhbrs = 5)
 }
 \arguments{
+\item{mmd_mat}{matrix of MMD distances}
+
 \item{n_nhbrs}{How many neighbours in the NN graph}
 }
 \value{

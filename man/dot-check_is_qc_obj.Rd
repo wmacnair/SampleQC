@@ -15,3 +15,4 @@ string saying progress
 \description{
 Checks whether a given sce object is a SampleQC object
 }
+\keyword{internal}

@@ -1,18 +1,29 @@
 # SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
 # for single cell RNA-seq
-#' devtools::load_all('~/work/packages/BayesQC')
-#' devtools::document('~/work/packages/BayesQC')
+# SampleQC_sims.R
+# Complex simulations of good and bad quality cells
 
-# Notes
-    # should beta_k have some separation?
-    # add correlation between beta_k entries
+# devtools::load_all('~/work/packages/SampleQC')
+# devtools::document('~/work/packages/SampleQC')
 
-
-#' SampleQC_sims.R
-#' Complex simulations of good and bad quality cells
-
-#' @rdname sim_experiment
 #' Simulates QC metrics for whole experiment
+#' 
+#' @description 
+#' Detailed simulation of QC metric distribution across whole experiment, 
+#' assuming multiple celltypes, which are shared across different groups of 
+#' samples ('sample groups'). Parameters are derived from real data and are 
+#' hopefully reasonably realistic.
+#' 
+#' @details
+#' The simulation first randomly generates \emph{K} celltypes (= mixture 
+#' components), each with its own mean and covariance matrix. It also 
+#' generates parameters for \emph{n_groups}, including: how many cells in each 
+#' group; how many samples; which celltypes are present in that group; 
+#' hyperparameters for outliers in that group.
+#' 
+#' Given these generated quantities, a set of QC metric vectors representing 
+#' cells is drawn for each sample group, and combined into \emph{qc_dt}. Each 
+#' row in this \code{data.table} represents a cell, and has annotations showing
 #' 
 #' @param n_groups How many sample groups?
 #' @param n_cells How many cells in total to simulate
@@ -21,12 +32,20 @@
 #' @param D How many QC metrics do you want
 #' @param K How many mixture components should there be in total? (see Details)
 #' 
-#' @section Details:
-#' [describe what the components are]
+#' @return list with multiple entries:
+#' - qc_ok: \code{data.table} of cell QC metrics \emph{before} outlier 
+#' perturbation
+#' - qc_out: \code{data.table} of cell QC metrics \emph{after} outlier 
+#' perturbation
+#' - x_ok, x_out: matrices of values in qc_ok, qc_out respectively
+#' - groups: vector of true sample groups
+#' - samples: vector of sample_ids
+#' - z: vector of true celltype / mixture component values
+#' - outliers: vector of outlier status (0/1)
+#' - group_sims: detailed list of simulation outputs for each sample group
+#' - expt_params: list of whole experiment-level parameters (e.g. celltype 
+#' means and covariance matrices)
 #' 
-#' @return list with two entries:
-#' - \code{qc_dt}, a \code{\link[data.table]{data.table}}
-#' - \code{params}, a list specifying the true parameter values for each group
 #' @export
 sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4, 
     qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
@@ -71,8 +90,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(sims_list)
 }
 
-#' @noRd .draw_expt_params
-#' @title Draws experiment-level parameters
+#' Draws experiment-level parameters
 #' 
 #' @param n_groups Number of sample groups, each of which is composed of 
 #' multiple samples
@@ -142,8 +160,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(expt_params)
 }
 
-#' @noRd .draw_mu_0
-#' @title Draws centre of sample group
+#' Draws centre of sample group
 #' 
 #' @param D number of dimensions
 #' @param n_groups number of sample groups
@@ -200,8 +217,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(mu_0s)
 }
 
-#' @noRd .draw_beta_k
-#' @title Draws random parameters for mixture model components
+#' Draws random parameters for mixture model components
 #' 
 #' @param D number of dimensions
 #' @param K number of components
@@ -251,8 +267,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(beta_k)
 }
 
-#' @noRd .draw_Sigma_k
-#' @title Draws random parameters for mixture model covariances
+#' Draws random parameters for mixture model covariances
 #' 
 #' @param D number of dimensions
 #' @param K number of components
@@ -311,8 +326,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(Sigma_k)
 }
 
-#' @noRd .draw_sel_ks
-#' @title Determines which components are observed in each sample group
+#' Determines which components are observed in each sample group
 #' 
 #' @param K number of components
 #' @param n_groups number of sample groups
@@ -357,8 +371,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(sel_ks)
 }
 
-#' @noRd .draw_p_out_0s
-#' @title Sample group-level probabilities of cells being outliers
+#' Sample group-level probabilities of cells being outliers
 #' 
 #' @param n_groups number of sample groups
 #' 
@@ -386,8 +399,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(p_out_0s)
 }
 
-#' @noRd .draw_theta_0s
-#' @title Sample group-level probabilities of cells being outliers
+#' Draws group-level probabilities of cells being outliers
 #' 
 #' @param n_groups number of sample groups
 #' 
@@ -410,8 +422,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(theta_0s)
 }
 
-#' @noRd .draw_p_loss_0s
-#' @title Sample group-level probabilities of reads being lost in outlier cells
+#' Draws group-level probabilities of reads being lost in outlier cells
 #' 
 #' @param n_groups number of sample groups
 #' 
@@ -437,8 +448,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(p_loss_0s)
 }
 
-#' @noRd .sim_sample_group
-#' @title Simulates QC metrics for one group of samples
+#' Simulates QC metrics for one group of samples
 #' 
 #' @param D number of dimensions
 #' @param J number of groups
@@ -450,9 +460,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @importFrom data.table data.table
 #' @importFrom magrittr "%>%"
 #'
-#' @return list with two entries:
-#' - \code{qc_dt}, a \code{\link[data.table]{data.table}}
-#' - \code{params}, a list specifying the true parameter values for this group
+#' @return list with all parameters for this group
 #' @keywords internal
 .sim_sample_group <- function(N, D, J, K, 
     mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0) {
@@ -506,8 +514,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(data_list)
 }
 
-#' @noRd .draw_samples
-#' @title Randomly splits up N cells into J samples with different sizes
+#' Randomly splits up N cells into J samples with different sizes
 #' 
 #' @param J number of samples
 #' @param N number of cells
@@ -532,8 +539,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(samples)
 }
 
-#' @noRd .draw_dir_0
-#' @title Determines Dirichlet parameter for p_jk draws
+#' Determines Dirichlet parameter for p_jk draws
 #' 
 #' @param K number of components
 #' 
@@ -550,8 +556,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(dir_0)
 }
 
-#' @noRd .draw_alpha_j
-#' @title Draws random parameters for sample shifts
+#' Draws random parameters for sample shifts
 #' 
 #' @param D number of dimensions
 #' @param J number of samples
@@ -591,8 +596,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(alpha_j)
 }
 
-#' @noRd .draw_delta_jk
-#' @title Draws random parameters for mixture model components
+#' Draws random parameters for mixture model components
 #' 
 #' @param D number of components
 #' @param J number of groups
@@ -639,8 +643,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(delta_jk)
 }
 
-#' @noRd .draw_p_jk
-#' @title Draws random parameters for mixing parameters
+#' Draws random parameters for mixing parameters
 #' 
 #' @param J number of samples
 #' @param K number of components
@@ -663,8 +666,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(p_jk)
 }
 
-#' @noRd .draw_z
-#' @title Draws latent true component for each cell
+#' Draws latent true component for each cell
 #' 
 #' @param samples sample indices
 #' @param p_jk component probabilities
@@ -689,8 +691,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(z)
 }
 
-#' @noRd .draw_params_outliers
-#' @title Draws random parameters to determine how to do outliers
+#' Draws random parameters to determine how to do outliers
 #' 
 #' @param J number of samples
 #' 
@@ -714,8 +715,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(out_j)
 }
 
-#' @noRd .draw_outliers
-#' @title Which cells are outliers?
+#' Which cells are outliers?
 #' 
 #' @param samples sample indices
 #' @param out_j probabilities of being outliers
@@ -733,8 +733,9 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(outliers)
 }
 
-#' @noRd .sim_ok_cells
-#' @title Simulates healthy cells
+#' Simulates healthy cells
+#' 
+#' Assumes the following distribution:
 #' x | z = k ~ MVN( mu_0 + alpha_j + beta_k + delta_jk, Sigma_k)
 #' z | J = j ~ p_jk
 #' 
@@ -783,12 +784,11 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(x)
 }
 
-#' @noRd .sim_outliers
-#' @title Simulates outliers from ok cells
-#' within each sample, downsample non-mito
-#' then recalculate metrics
+#' Simulates outliers from ok cells
 #' 
-#' not implemented: decide whether to downsample non-mito or _all_;
+#' Outliers are assumed to be a combination of loss of non-mitochondrial 
+#' counts and features. Each sample has a different proportion of outlier 
+#' cells, and a different proportion of log counts lost.
 #' 
 #' @param x_ok healthy cells
 #' @param samples list of sample membership
@@ -841,8 +841,9 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     return(x_out)
 }
 
-#' @noRd .process_outputs
-#' @title Gathers results simulated for individual sample groups together into
+#' Gathers results simulated for individual sample groups together
+#' 
+#' Gathers results simulated for individual sample groups together into
 #' results for a whole experiment. Results for individual sample groups are 
 #' returned. 
 #' 
@@ -1005,237 +1006,4 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     rownames(sce)   = gene_names
 
     return(sce)
-}
-
-########################
-# maybe junk/no longer needed/duplicated elsewhere?
-########################
-
-.annotate_variables <- function(dt) {
-    dt[ , var    := factor(var) ] %>%
-    .[ , var_type   := factor(str_match(var, '^(.+)[\\[$]')[,2]) ] %>%
-    .[ ,            comp := factor(str_match(var, 'k\\[([0-9]+)\\]')[,2]) ] %>%
-    .[is.na(comp),  comp := factor(str_match(var, 'jk\\[[0-9]+,([0-9]+)\\]')[,2]) ] %>%
-    .[ ,            group := factor(str_match(var, 'j\\[([0-9]+)')[,2]) ] %>%
-    .[is.na(group), group := factor(str_match(var, 'jk\\[([0-9]+),')[,2]) ]
-    return(dt)
-}
-
-make_truth_alpha_j_beta_k <- function(data_list) {
-    truth   = data.table(
-        var     = c(
-            paste0('mu_0'),
-            paste0('alpha_j[', seq_len(data_list$J), ']'),
-            paste0('beta_k[', seq_len(data_list$K), ']'),
-            paste0('sigma_k[', seq_len(data_list$K), ']'),
-            as.vector(outer(seq_len(data_list$J), seq_len(data_list$K), function(j, k) paste0('p_jk[', j, ",", k, ']')))
-            ),
-        value   = c(
-            data_list$mu_0, 
-            data_list$alpha_j, 
-            data_list$beta_k, 
-            data_list$sigma_k,
-            as.vector(data_list$p_j)
-            )
-        )
-    # truth[ , var    := factor(var) ] %>%
-    #     .[ , var_type   := factor(str_match(var, '^(.+)\\[')[,2]) ] %>%
-    #     .[ , comp       := factor(str_match(var, '([0-9]+)\\]')[,2]) ] %>%
-    #     .[ , group      := factor(str_match(var, 'j_\\[([0-9]+),')[,2]) ]
-    truth   = .annotate_variables(truth)
-    return (truth)
-}
-
-make_em_dt <- function(data_list, em_list) {
-    em_dt   = data.table(
-        var     = c(
-            paste0('mu_0'),
-            paste0('alpha_j[', seq_len(data_list$J), ']'),
-            paste0('beta_k[', seq_len(data_list$K), ']'),
-            paste0('sigma_k[', seq_len(data_list$K), ']'),
-            paste0('p_k[', seq_len(data_list$K), ']'),
-            as.vector(outer(seq_len(data_list$J), seq_len(data_list$K), function(j, k) paste0('p_jk[', j, ",", k, ']')))
-            ),
-        value   = c(
-            em_list$mu_0, 
-            em_list$alpha_j, 
-            em_list$beta_k, 
-            em_list$sigma_k,
-            em_list$p_k,
-            as.vector(em_list$p_jk)
-            )
-        )
-    em_dt   = .annotate_variables(em_dt)
-    return (em_dt)
-}
-
-calc_means_mvn <- function(dt) {
-    mu_0        = dt[ var_type == 'mu_0', list(dim, mu_0=value, dummy=1) ]
-    alphas      = dt[ var_type == 'alpha_j', list(dim, group, alpha_j=value, dummy=1) ]
-    betas       = dt[ var_type == 'beta_k', list(dim, comp, beta_k=value, dummy=1) ]
-    means_dt    = merge(
-        alphas, betas, 
-        by=c('dim'), allow.cartesian=TRUE) %>% 
-        merge(
-            mu_0, 
-            by=c('dim'), allow.cartesian=TRUE) %>% 
-        .[, dim := paste0('dim', dim) ] %>%
-        .[, mu_jk := mu_0 + alpha_j + beta_k ] %>% 
-        dcast( group + comp ~ dim, value.var='mu_jk' ) 
-    return(means_dt)
-}
-
-calc_means <- function(dt) {
-    mu_0        = dt[var == 'mu_0']$value
-    alphas      = dt[ var_type == 'alpha_j', list(group, alpha_j=value, dummy=1) ]
-    betas       = dt[ var_type == 'beta_k', list(comp, beta_k=value, dummy=1) ]
-    means_dt = merge(alphas, betas, by='dummy', allow.cartesian=TRUE) %>% .[, dummy := NULL ]
-    means_dt[, mu_jk := mu_0 + alpha_j + beta_k ]
-    return(means_dt)
-}
-
-.annotate_variables_mvn <- function(dt) {
-    dt[ , var    := factor(var) ] %>%
-    .[ , var_type   := factor(str_match(var, '^(.+)[\\[$]')[,2]) ] %>%
-    .[ ,            comp    := factor(str_match(var, '_k\\[([0-9]+),[0-9]+\\]')[,2]) ] %>%
-    .[is.na(comp),  comp    := factor(str_match(var, 'jk\\[[0-9]+,([0-9]+)\\]')[,2]) ] %>%
-    .[ ,            dim     := factor(str_match(var, '_0\\[([0-9]+)\\]')[,2]) ] %>%
-    .[is.na(dim),   dim     := factor(str_match(var, '_j\\[[0-9]+,([0-9]+)\\]')[,2]) ] %>%
-    .[is.na(dim),   dim     := factor(str_match(var, '_k\\[[0-9]+,([0-9]+)\\]')[,2]) ] %>%
-    .[ ,            group   := factor(str_match(var, 'j\\[([0-9]+)')[,2]) ] %>%
-    .[is.na(group), group   := factor(str_match(var, 'jk\\[([0-9]+),')[,2]) ]
-    return(dt)
-}
-
-extract_params_mvn <- function(data_list, param_list) {
-    dt   = data.table(
-        var     = c(
-            paste0('mu_0[', seq_len(data_list$D), ']'),
-            as.vector(outer(seq_len(data_list$J), seq_len(data_list$D), function(j, d) paste0('alpha_j[', j,',', d, ']'))),
-            as.vector(outer(seq_len(data_list$K), seq_len(data_list$D), function(k, d) paste0('beta_k[', k,',', d, ']'))),
-            as.vector(outer(seq_len(data_list$D^2), seq_len(data_list$K),  function(k, d) paste0('sigma_k[', k,',', d, ']'))),
-            as.vector(outer(seq_len(data_list$J), seq_len(data_list$K), function(j, k) paste0('p_jk[', j, ",", k, ']')))
-            ),
-        value   = c(
-            param_list$mu_0,
-            as.vector(param_list$alpha_j),
-            as.vector(param_list$beta_k),
-            as.vector(param_list$sigma_k),
-            as.vector(param_list$p_j)
-            )
-        )
-    # dt[ , var    := factor(var) ] %>%
-    #     .[ , var_type   := factor(str_match(var, '^(.+)\\[')[,2]) ] %>%
-    #     .[ , comp       := factor(str_match(var, '([0-9]+)\\]')[,2]) ] %>%
-    #     .[ , group      := factor(str_match(var, 'j_\\[([0-9]+),')[,2]) ]
-    dt   = .annotate_variables_mvn(dt)
-    return (dt)
-}
-
-.junk <- function() {
-    # estimating beta_k values
-    alpha_js    = metadata(qc_obj)$fit_list %>% 
-        lapply(function(x) x$alpha_j) %>% 
-        do.call(rbind, .)
-
-    colMeans(alpha_js)
-    apply(alpha_js, 2, sd)
-    cor(alpha_js)
-
-    # estimating beta_k values
-    beta_ks     = metadata(qc_obj)$fit_list %>% 
-        lapply(function(x) x$beta_k) %>% 
-        .[lapply(., nrow) > 1] %>% 
-        lapply(function(l) sweep(l[-1, ,drop=FALSE], 2, l[1, ], "-")) %>% 
-        do.call(rbind, .)
-
-    colMeans(beta_ks)
-    apply(beta_ks, 2, sd)
-    cor(beta_ks)
-
-    # estimating wishart matrix
-    sigmas_list = metadata(qc_obj)$fit_list %>% 
-        lapply(function(x) asplit(x$sigma_k, 3)) %>% 
-        unlist(recursive=FALSE)
-    apply(simplify2array(sigmas_list), 1:2, mean) %>% `/`(3) %>% format(scientific=TRUE, digits=3)
-
-    # estimating p_out values
-    library('emdbook')
-    library('bbmle')
-    p_out_dt = data.table(
-        sample_id   = colData(qc_obj)$sample_id,
-        group_id    = colData(qc_obj)$group_id,
-        n_out       = colData(qc_obj)$outlier %>% sapply(function(x) sum(x$outlier)),
-        n_total     = colData(qc_obj)$outlier %>% sapply(nrow)
-    )
-
-    fits    = sapply(metadata(qc_obj)$group_list,
-        function(g) {
-        # 
-        successes   = p_out_dt[ group_id == g ]$n_out
-        sizes       = p_out_dt[ group_id == g ]$n_total
-        like_fn <- function(prob,theta)
-            -sum(dbetabinom(successes,prob,sizes,theta,log=TRUE))
-        model       = mle2(like_fn,start=list(prob=0.2,theta=9))
-        return( coef(model) )
-        })
-}
-
-.junk2 <- function() {
-    # how to test outliers?
-    # - get good cells for one sample
-    # - try out different values of p
-
-    # generate whole experiment
-    set.seed(20200729)
-    n_groups    = 4
-    n_cells     = 1e5
-    cells_p_s   = 2000
-    D           = 3
-    K           = 4
-    sims_list   = sim_experiment(n_groups, n_cells, cells_p_s, D, K)
-
-    # extract one sample
-    sel_g       = 'QC4'
-    sel_s       = sims_list$samples[sims_list$groups == sel_g][[1]]
-    qc_ok       = copy(sims_list$qc_ok)[ sample_id == sel_s ]
-    x_ok        = qc_ok[, sims_list$expt_params$qc_names, with=FALSE] %>%
-        as.matrix
-    n_j         = nrow(x_ok)
-    p_tmp       = sims_list$group_sims[[sel_g]]$out_j[1, 'p_loss']
-
-    # extract values
-    total_old   = round(10^x_ok[, 1],0)
-    feats_old   = round(10^x_ok[, 2],0)
-    mt_prop_old = plogis(x_ok[, 3])
-    non_mt_old  = round(total_old * (1-mt_prop_old), 0)
-    mt_old      = total_old - non_mt_old
-
-    # downsample
-    non_mt_new  = rbinom(n_j, non_mt_old, 1-p_tmp) + 1
-    feats_new   = rbinom(n_j, feats_old, 1-p_tmp) + 1
-    total_new   = non_mt_new + mt_old + 1
-    mt_prop_new = (mt_old + 1) / total_new
-
-    # update values
-    x_new       = copy(x_ok)
-    x_new[, 1]  = log10(total_new)
-    x_new[, 2]  = log10(feats_new)
-    x_new[, 3]  = qlogis(mt_prop_new)
-
-    x_melt      = data.table(
-        outlier = rep.int(c('ok', 'outlier'), rep(n_j, 2)),
-        rbind(x_ok, x_new)
-        ) %>% melt(id=c('outlier', 'log_counts'))
-
-    # plot
-    g = ggplot(x_melt) +
-        aes( x=value, y=log_counts ) +
-        geom_bin2d() +
-        scale_fill_distiller( palette='RdBu', trans='log10' ) +
-        scale_x_continuous( breaks=pretty_breaks() ) +
-        scale_y_continuous( breaks=pretty_breaks() ) +
-        facet_grid( outlier ~ variable, scales='free_x' ) +
-        theme_bw()
-    ggsave('test.png', g, h=8, w=9)
 }

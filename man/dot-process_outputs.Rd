@@ -2,9 +2,7 @@
 % Please edit documentation in R/SampleQC_sims.R
 \name{.process_outputs}
 \alias{.process_outputs}
-\title{Gathers results simulated for individual sample groups together into
-results for a whole experiment. Results for individual sample groups are
-returned.}
+\title{Gathers results simulated for individual sample groups together}
 \usage{
 .process_outputs(group_sims, expt_params)
 }
