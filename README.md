@@ -4,14 +4,9 @@
 
 `SampleQC` is an R package for robust multivariate, multi-celltype, multi-sample quality control for single cell RNA-seq. QC is typically done by looking at measures of experimental quality for each cell (such as library size, number of features observed, mitochondrial proportion), and identifying cells which are outliers in some way (e.g. high mitochondrial proportion or small library size).
 
-Standard QC approaches suffer from various flaws:
+The main flaw in standard QC approaches that `SampleQC` seeks to correct is that unimodal outlier detection implicitly assumes that the sample consists of only one celltype, introducing biases in the cells excluded. It can preferentially exclude whole cell types with extreme QC metrics (e.g. small library sizes; naturally high mitochondrial proportions), even though these cells may be perfectly healthy. Related to this, identifying cell outliers within each sample individually means that if a celltype is present in only a small proportion in a given sample, it may be identified as an outlier and excluded, although it is healthy.
 
-* Outlier detection assuming that the sample consists of only one celltype introduces biases in the cells excluded. For example, excluding cells with low library sizes will preferentially exclude cell _types_ with small library sizes, even though these cells may be perfectly healthy.
-* Univariate outlier detection misses cells which are not outliers with respect to any individual QC metric, but are clearly outliers with respect to the observed distribution.
-* Identifying cell outliers within each sample individually means that if a celltype is present in only a small proportion in a given sample, it may be identified as an outlier and excluded, although it is healthy.
-* They do not provide an automatic assessment of quality at the _sample_ level.
-
-Our method `SampleQC` addresses these problems by fitting a flexible Gaussian mixture model to user-selected QC metrics. 
+Our method `SampleQC` addresses these problems by robustly fitting a multivariate Gaussian mixture model, across multiple samples simultaneously. It is intended for large, complex datasets with many samples, although should also work on smaller datasets. By default it uses log counts, log features and mitochondrial proportions, although users can select which QC metrics they wish to use (including e.g. CITE-seq QC metrics).
 
 
 # Installation
@@ -26,16 +21,11 @@ BiocManager::install("SingleCellExperiment")
 BiocManager::install("BiocStyle")
 
 # install this repo
-devtools::install_github('wmacnair/SampleQC', auth_token='5800e0926a5fa148d3f712d100cc71f6b1e71ea9')
+devtools::install_github('wmacnair/SampleQC')
 
 # set up libraries
 library('SampleQC')
 ```
-
-This should load all of the code.
-
-Currently the package is in alpha phase, i.e. it's definitely not ready yet. But it should still be pretty usable, and it would be great to get feedback on it.
-
 
 # Basic use
 
@@ -43,14 +33,14 @@ Currently the package is in alpha phase, i.e. it's definitely not ready yet. But
 
 `SampleQC` can be broken down into two main parts:
 
-1. Calculate differences between sample distributions, and plot these to identify groupings of _samples_ (e.g. poor quality samples, batch effects)
-2. Within each sample grouping, fit a statistical model to identify cells which are outliers, which gives you something like the standard `outlier`/`good` outputs from other QC approaches.
+1. `SampleQC` first calculates dissimilarities between sample distributions, and uses these to identify 'sample groups', i.e. groups of samples with similar distributions. This also provides embeddings of the samples, allowing users to check for batch effects.
+2. Within each sample group, `SampleQC` fits a statistical model to identify cells which are outliers, based on how unlikely they are under the statistical model.
 
 ## Setting up
 
 There are two possible startpoints for `SampleQC`: from a `SingleCellExperiment` object _sce_, or a `data.frame` where you've already calculated QC metrics for all your cells, _qc_df_. 
 
-If you already have a data.frame, it should contain the following columns:
+If you already have a `data.frame`, it should contain the following columns:
 
 * `cell_id`, a unique identifier for each cell
 * `sample_id`, identifier for experimental sample
@@ -67,11 +57,11 @@ qc_dt   = make_qc_dt(sce)
 # or: data.frame option
 qc_dt   = make_qc_dt(qc_df)
 
-# you can also specify your own qc_names, but these need to be present in your qc_df
+# you can specify your own qc_names, as long as these are present in the qc_df object
 qc_dt   = make_qc_dt(qc_df, qc_names=c('log_counts', 'log_feats', 'logit_mito'))
 ```
 
-An important point about the QC metrics you use: `SampleQC` uses a Gaussian distribution to identify cell outliers. This means that you can't use things like _mito_prop_ directly, but have to transform them first, e.g. via the inverse logistic function. `SampleQC` does this transformation for you, into the variable _logit_mito_ in the _qc_dt_ object.
+An important point about the QC metrics you use: `SampleQC` uses a mixture of Gaussian distributions to identify cell outliers. This means that you can't use metrics based on proportions like _mito_prop_ directly, but have to transform them first, e.g. via the inverse logistic function. For the variable _mito_prop_, `SampleQC` does this transformation automatically, into the variable _logit_mito_ in the _qc_dt_ object.
 
 ## Running `SampleQC`
 
@@ -86,34 +76,25 @@ annots_disc     = c('well_id', 'patient_id', 'condition')
 annots_cont     = NULL
 ```
 
-`SampleQC` generates some additional automatic annotations, such as median mitochondrial proportion by sample and sample size.
+`SampleQC` generates some additional automatic annotations, such as median mitochondrial proportion by sample, sample size, and some others.
 
-We then calculate distances between all the samples, and embed this matrix via a couple of dimensionality reduction options. `SampleQC` stores everything in a `SingleCellExperiment` object, which makes things neat (hopefully...).
+We then calculate distances between all the samples, and embed this matrix via dimensionality reduction options. `SampleQC` stores everything neatly in a `SingleCellExperiment` object (mainly in the `colData` entry).
 
 ```R
 qc_obj      = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
-    annots_disc=annots_disc, annots_cont=annots_cont, 
-    subsample=200, n_times=20, n_cores=4)
+    annots_disc=annots_disc, annots_cont=annots_cont, n_cores=4)
 print(table(colData(qc_obj)$group_id))
 ```
 
-Next we fit Gaussian mixture models, either one to each of the sample groupings that we found, or to the whole dataset. The user needs to specify how many clusters to fit in each group of samples. The quickest way to do this is to start with `K=1` for each cluster, plot the results, and then inspect the outputs to find which value is best for each cluster. Fitting to real data can be difficult; you may to try multiple different values of K, and maybe also tweak some parameters.
+Next we fit Gaussian mixture models, either one to each of the sample groupings that we found, or to the whole dataset. The user needs to specify how many clusters to fit in each group of samples. The quickest way to do this is to start with `K=1` for each cluster, plot the results, and then inspect the outputs to find which value is best for each cluster. Fitting to real data can require a couple of goes, for example trying multiple different values of K.
 
-To fit to each of the sample groupings individually, you use the parameter `K_list`.
-
-```R
-qc_obj      = fit_sampleQC(qc_obj, K_list=rep(1, metadata(qc_obj)$n_groups))
-# qc_obj      = fit_sampleQC(qc_obj, K_list=c(2,3,2,2))
-```
-
-To fit one model to the whole of the dataset, you use the parameter `K_all`. You might want to do this when you have relatively few samples (e.g. 30 or fewer) and / or when your samples have very similar distributions of QC metrics.
+To fit to each of the sample groupings individually, you use the parameter `K_list`. We recommend first specifying 1 component for each group and rendering a report: `K=1` is extremely quick to fit, and the diagnostic plots in the rendering allow you to check the appropriate number of components for each sample group.
 
 ```R
-qc_obj      = fit_sampleQC(qc_obj, K_all=1)
-# qc_obj      = fit_sampleQC(qc_obj, K_all=2)
+qc_obj      = fit_sampleQC(qc_obj, K_list=rep(1, get_n_groups(qc_obj)))
 ```
 
-Once you've fit everything, you can render an html report and check whether it makes sense. 
+Once the model has fit, you can render an html report and check whether it makes sense. 
 
 ```R
 # define you project name and where you want to save these reports
@@ -121,23 +102,26 @@ proj_name   = 'my_project'
 save_dir    = '/home/work/my_project/qc/'
 dir.create(save_dir)
 
-# render the report!
+# render the report
 make_SampleQC_report(qc_obj, save_dir, proj_name)
 ```
 
+This allows you to check whether the number of components for each group looks correct. If not, you can rerun with a different specification of `K_list`:
+```R
+qc_obj      = fit_sampleQC(qc_obj, K_list=c(2,3,2,2))
+```
 
-# Future development
+To fit one model to the whole of the dataset, you use the parameter `K_all`. You might want to do this when you have relatively few samples (e.g. 30 or fewer) and / or when your samples have very similar distributions of QC metrics.
 
-Things I'm planning to include:
+```R
+qc_obj      = fit_sampleQC(qc_obj, K_all=2)
+```
 
-* More unit tests (you can always do more unit tests...)
-* Some kind of testing of the *Rcpp* bits
+Once you're happy that the model is identifying outliers correctly, you can extract the outliers found by `SampleQC`by the following:
 
-Things I'm considering including:
-
-* Functions for calculating QC metric values e.g. from an `sce` object. This can be slow; it could be worth trying to speed this up, or at least check if someone else has solved this problem already.
-* Some way of checking whether the clustering of samples worked properly (specifically, feeding back any signs of bad fit at the GMM step into the earlier stage).
-
+```R
+outliers_dt = get_outliers(qc_obj)
+```
 
 #  Bugs / Suggestions / Thoughts
 
@@ -152,5 +136,5 @@ Will
 
 ## System requirements
 
-`SampleQC` requires `R >= 4.0.0` (although it may not make much difference if you use `R 3.6.1`.
+`SampleQC` requires `R >= 4.0.0`.
 
