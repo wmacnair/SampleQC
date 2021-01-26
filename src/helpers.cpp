@@ -37,16 +37,6 @@ void print_ivector(arma::uvec vec, const char* vec_name) {
   Rprintf("\n");
 }
 // [[Rcpp::export]]
-arma::uvec reorder_z(arma::uvec z, arma::uvec idx) {
-  int K = idx.n_elem;
-  int N = z.n_elem;
-  arma::uvec z_ordered(N);
-  for(int k = 0; k < K; ++k) {
-    z_ordered(z == idx(k))  = k;
-  }
-  return z_ordered;
-}
-// [[Rcpp::export]]
 arma::vec reorder_vector(arma::vec x, arma::uvec idx) {
   int K = x.n_elem;
   arma::vec x_ordered(K);

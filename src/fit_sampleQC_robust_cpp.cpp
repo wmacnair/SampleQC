@@ -431,6 +431,19 @@ double calc_log_likelihood(
   return loglike;
 }
 
+arma::uvec reorder_z(arma::uvec z, arma::uvec idx) {
+  int K = idx.n_elem;
+  int N = z.n_elem;
+  arma::uvec z_ordered(N);
+  for(int n = 0; n < N; ++n) {
+    for(int k = 0; k < K; ++k) {
+      if (z(n) == idx(k))
+        z_ordered(n)  = k;
+    }
+  }
+  return z_ordered;
+}
+
 //' @title Robustly fits a multivariate Gaussian mixture model to given data
 //' 
 //' @keywords internal
