@@ -509,6 +509,7 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
 
   // put all components in order of first QC metric (which is typically log counts)
   k_order   = sort_index(beta_k.col(0));
+  new_z     = reorder_z(new_z, k_order);
   beta_k    = reorder_matrix_rows(beta_k, k_order);
   scale_k   = reorder_cube_slices(scale_k, k_order);
   p_jk      = reorder_matrix_cols(p_jk, k_order);
