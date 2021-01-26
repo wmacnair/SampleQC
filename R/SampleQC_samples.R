@@ -327,6 +327,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 #'
 #' @importFrom igraph cluster_louvain
 #' @importFrom magrittr "%>%"
+#' @importFrom stringr str_match
 #' 
 #' @return vector of group_ids for all samples
 #' @keywords internal
@@ -342,6 +343,14 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
         setNames(names(sort(-group_ns)))
     group_ids   = new_ids[ as.character(group_ids) ] %>% unname
     group_ids   = paste0('SG', group_ids) %>% factor
+
+    # put levels in nice order
+    new_levels  = levels(group_ids) %>%
+        str_match('[0-9]+') %>%
+        as.integer %>%
+        sort %>%
+        paste0('SG', .)
+    levels(group_ids) = new_levels
 
     return(group_ids)
 }
