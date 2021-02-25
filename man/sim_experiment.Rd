@@ -24,6 +24,8 @@ sample has 2000 cells on average)}
 \item{D}{How many QC metrics do you want}
 
 \item{K}{How many mixture components should there be in total? (see Details)}
+
+\item{qc_names}{Names for QC metrics}
 }
 \value{
 list with multiple entries:

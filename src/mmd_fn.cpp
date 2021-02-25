@@ -86,5 +86,6 @@ double mmd_fn(arma::mat X, arma::mat Y, double sigma) {
 
   // add together
   mmd   = xx_sum + yy_sum - 2*xy_sum;
+  
   return mmd;
 }

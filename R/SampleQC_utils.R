@@ -265,8 +265,7 @@ make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts',
 
 #' Renders SampleQC report into specified format.
 #' 
-#' @param mmd_list Outputs from calculate_sample_to_sample_MMDs
-#' @param em_list Outputs from fit_sampleQC
+#' @param qc_obj Outputs from fit_sampleQC
 #' @param save_dir Directory to save into (must exist)
 #' @param proj_name Name to use to in file
 #' 
@@ -325,9 +324,8 @@ make_SampleQC_report <- function(qc_obj, save_dir, proj_name) {
 
     # check that correct assay names are present
     assert_that(
-        all( c('mmd', 'mmd_adj') %in% names(assays(qc_obj)) ),
-        msg='not SampleQC object: "mmd" and "mmd_adj" 
-        must be present in assays'
+    all( c('mmd', 'mmd_adj') %in% names(assays(qc_obj)) ),
+    msg='not SampleQC object: "mmd" and "mmd_adj", must be present in assays'
         )
     # check that base colData names are present
     cd_names    = names(colData(qc_obj))

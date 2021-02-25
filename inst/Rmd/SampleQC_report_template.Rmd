@@ -112,7 +112,7 @@ for (g in group_list) {
 
 These plots show the composition of each sample in terms of the $K$ different mixture components, plus outliers.
 
-## $\beta_k$ values{.tabset}
+## Splits across components{.tabset}
 
 ```{r plot_beta_k, fig.height=10, fig.width=6, results='asis'}
 # plot likelihoods

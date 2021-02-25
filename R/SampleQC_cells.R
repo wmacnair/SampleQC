@@ -11,22 +11,22 @@
 #' Fits `SampleQC` model to one cluster of samples
 #' 
 #' @description 
-#' Running \code{\link{calculate_sample_to_sample_MMDs()}} identifies groups 
+#' Running \link{calculate_sample_to_sample_MMDs} identifies groups 
 #' of samples with similar distributions of QC metrics ('sample groups'). 
-#' \code{\link{SampleQC}} then fits a multivariate Gaussian mixture model to 
+#' \link{SampleQC} then fits a multivariate Gaussian mixture model to 
 #' each sample group, and uses these distributions to determine outlier cells
 #' without celltype bias.
 #'
 #' @details
 #' Determining the number of components to use in a Gaussian mixture model is 
-#' a hard problem that \code{\link{SampleQC}} does not attempt to solve. 
-#' However, \code{\link{SampleQC}} provides diagnostic plots that assist the 
+#' a hard problem that \link{SampleQC} does not attempt to solve. 
+#' However, \link{SampleQC} provides diagnostic plots that assist the 
 #' user to make this decision themself. 
 #' 
 #' We recommend the following workflow. The first step is always to identify 
 #' sample groups (and derive embeddings) by calling 
-#' \code{\link{calculate_sample_to_sample_MMDs}}. Next, we recommend calling 
-#' \code{\link{fit_sampleQC}} with \code{K_list=rep(1, get_n_groups(qc_obj)))},
+#' \link{calculate_sample_to_sample_MMDs}. Next, we recommend calling 
+#' \link{fit_sampleQC} with \code{K_list=rep(1, get_n_groups(qc_obj)))},
 #' then rendering outputs with \code{make_SampleQC_report(qc_obj, save_dir, 
 #' 'test')}. This fits the simplest possible model to each sample group (i.e. 
 #' one component), and renders a report with biaxial plots. 
@@ -572,7 +572,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
     qc_not_1    = qc_names[-1]
     points_dt   = copy(colData(qc_obj)[[sel_sample, 'qc_metrics']]) %>%
         .[, cell_id := colData(qc_obj)$cell_id[[sel_sample]] ] %>%
-        melt(
+        data.table::melt(
             id      = c('cell_id', qc_1), 
             measure = qc_not_1,
             variable.name='other_qc', value.name='qc_x'
@@ -598,7 +598,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
         data.table %>%
         set_colnames(qc_names) %>%
         .[, component := 1:.N] %>%
-        melt(id=c('component', qc_1), 
+        data.table::melt(id=c('component', qc_1), 
             variable.name='other_qc', value.name='qc_x') %>%
         setnames(qc_1, 'qc_y')
 
@@ -711,7 +711,7 @@ plot_fit_over_biaxials_one_sample <- function(qc_obj, sel_sample,
 #' @importFrom SummarizedExperiment colData
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
-#' @importFrom data.table ":=" setnames rbindlist dcast copy
+#' @importFrom data.table ":=" setnames rbindlist dcast copy melt
 #' @importFrom ggplot2 ggplot aes geom_point
 #' @importFrom ggplot2 scale_x_continuous scale_y_continuous
 #' @importFrom ggplot2 facet_grid theme_bw theme labs
@@ -868,7 +868,9 @@ plot_alpha_js_likelihoods <- function(qc_obj, sel_group, df=5) {
 #'
 #' @param qc_obj Output from function fit_sampleQC
 #' @param sel_group Which sample group to plot
-#' @param df degrees of freedom for multivariate t
+#' @param df Degrees of freedom for multivariate t
+#' @param qc_idx Which QC metrics to plot?
+#' @param pc_idx Which PCA components to plot?
 #' 
 #' @importFrom S4Vectors metadata
 #' @importFrom SummarizedExperiment colData
@@ -968,7 +970,7 @@ plot_alpha_js <- function(qc_obj, sel_group, df=5, qc_idx=c(1,2), pc_idx=c(1,2))
 #' @importFrom SummarizedExperiment colData
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table ":=" setnames melt copy
+#' @importFrom data.table data.table ":=" setnames melt copy merge.data.table
 #' @importFrom forcats fct_reorder
 #' @importFrom MASS cov.trob
 #' @importFrom mvnfast dmvt
@@ -1032,7 +1034,7 @@ plot_beta_ks <- function(qc_obj, sel_group) {
             id='sample_id', variable.name='z', 
             value.name='cluster_delta'
             )
-    p_jk_dt     = data.table:::merge.data.table(
+    p_jk_dt     = data.table::merge.data.table(
         diffs_dt, p_jk_dt, by=c('sample_id', 'z')
         )
 

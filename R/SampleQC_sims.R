@@ -31,6 +31,7 @@
 #' sample has 2000 cells on average)
 #' @param D How many QC metrics do you want
 #' @param K How many mixture components should there be in total? (see Details)
+#' @param qc_names Names for QC metrics
 #' 
 #' @return list with multiple entries:
 #' - qc_ok: \code{data.table} of cell QC metrics \emph{before} outlier 

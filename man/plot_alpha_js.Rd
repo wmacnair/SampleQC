@@ -11,7 +11,11 @@ plot_alpha_js(qc_obj, sel_group, df = 5, qc_idx = c(1, 2), pc_idx = c(1, 2))
 
 \item{sel_group}{Which sample group to plot}
 
-\item{df}{degrees of freedom for multivariate t}
+\item{df}{Degrees of freedom for multivariate t}
+
+\item{qc_idx}{Which QC metrics to plot?}
+
+\item{pc_idx}{Which PCA components to plot?}
 }
 \value{
 ggplot object

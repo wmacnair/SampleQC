@@ -33,7 +33,7 @@ get_n_groups <- function(qc_obj) {
 #' intended for use when there are groups of cells with sufficient numbers to 
 #' be modelled as a group by \code{SampleQC}, but the user wishes to exclude 
 #' them (for example, a large cluster of cells with extremely high mitochondrial 
-#' proportions). In this case, \code{\link{fit_sampleQC}} would identify these 
+#' proportions). In this case, \link{fit_sampleQC} would identify these 
 #' as a valid celltype / mixture component and not outliers. Specifying 
 #' \code{exc_clusters} allows these to be removed, e.g. \code{exc_clusters=
 #' list(SG2=c(2,3))} would specify removing components 2 and 3 in sample group 

@@ -7,13 +7,11 @@
 make_SampleQC_report(qc_obj, save_dir, proj_name)
 }
 \arguments{
+\item{qc_obj}{Outputs from fit_sampleQC}
+
 \item{save_dir}{Directory to save into (must exist)}
 
 \item{proj_name}{Name to use to in file}
-
-\item{mmd_list}{Outputs from calculate_sample_to_sample_MMDs}
-
-\item{em_list}{Outputs from fit_sampleQC}
 }
 \description{
 Renders SampleQC report into specified format.

@@ -584,7 +584,7 @@ plot_embeddings <- function(qc_obj, var_type=c('discrete', 'continuous'),
 #' @importFrom SummarizedExperiment assay
 #' @importFrom S4Vectors metadata
 #' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table ":="
+#' @importFrom data.table data.table ":=" melt as.data.table
 #' @importFrom scales pretty_breaks
 #' @importFrom ggplot2 ggplot aes geom_tile
 #' @importFrom ggplot2 scale_fill_distiller expand_limits
@@ -605,9 +605,9 @@ plot_mmd_heatmap <- function(qc_obj) {
     sample_ord  = hclust_obj$labels[hclust_obj$order]
 
     # make mmd_dt 
-    mmd_dt      = reshape2:::melt.array(mmd_mat, 
-        varnames=c('sample_i', 'sample_j'), value.name='mmd_mean') %>%
-        data.table %>%
+    mmd_dt      = as.data.table(mmd_mat, keep.rownames = 'sample_i') %>% 
+        melt(id = 'sample_i', variable.name = 'sample_j', 
+            value.name='mmd_mean') %>%
         .[, sample_i := factor(sample_i, levels=sample_ord) ] %>%
         .[, sample_j := factor(sample_j, levels=sample_ord) ] %>%
         .[ sample_i != sample_j ]
