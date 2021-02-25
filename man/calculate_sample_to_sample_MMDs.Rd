@@ -14,7 +14,8 @@ calculate_sample_to_sample_MMDs(
   subsample = 200,
   n_times = 10,
   centre_samples = TRUE,
-  scale_samples = FALSE
+  scale_samples = FALSE,
+  seed = 22
 )
 }
 \arguments{

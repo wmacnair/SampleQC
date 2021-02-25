@@ -214,9 +214,5 @@ test_that("sim_experiment works", {
     expect_type(expt_params, 'list')
 })
 
-# test_that("seeds are replicable", {
-#     # maybe not necessary, since not using Rcpp
-# })
-
 # test_that("z sampling works", {
 # })

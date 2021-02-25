@@ -87,8 +87,8 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL,
         if (fit_params$n_cores == 1) {
             bpparam = SerialParam()
         } else {
-            bpparam = MulticoreParam(workers=fit_params$n_cores, 
-                RNGseed=bp_seed )
+            bpparam = MulticoreParam(workers = fit_params$n_cores, 
+                RNGseed = bp_seed)
         }
 
         # fit each sample group
@@ -96,14 +96,14 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL,
         fit_list    = bplapply(
             seq_along(df_list), 
             function(i)
-                .fit_one_sampleQC(df_list[[i]], K_list[[i]], fit_params), 
-                BPPARAM=bpparam)
+                .fit_one_sampleQC(df_list[[i]], K_list[[i]], fit_params, seed = i), 
+                BPPARAM = bpparam)
         names(fit_list) = metadata(qc_obj)$group_list
         bpstart(bpstop)
     } else {
         # fit one model to all samples
         df          = colData(qc_obj)
-        fit_list    = list(.fit_one_sampleQC(df, K_all, fit_params))
+        fit_list    = list(.fit_one_sampleQC(df, K_all, fit_params, seed = 1))
         names(fit_list) = 'All'
     }
 
@@ -202,7 +202,7 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL,
 #'
 #' @return list, containing lots of cell outlier information
 #' @keywords internal
-.fit_one_sampleQC <- function(df, K=1, fit_params) {
+.fit_one_sampleQC <- function(df, K=1, fit_params, seed) {
     # unpack inputs
     alpha       = fit_params$alpha
     em_iters    = fit_params$em_iters

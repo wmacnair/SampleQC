@@ -4,7 +4,7 @@
 \alias{.fit_one_sampleQC}
 \title{Fits \code{SampleQC} model to one cluster of samples}
 \usage{
-.fit_one_sampleQC(df, K = 1, fit_params)
+.fit_one_sampleQC(df, K = 1, fit_params, seed)
 }
 \arguments{
 \item{df}{DataFrame with lots of nested things}

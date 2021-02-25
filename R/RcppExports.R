@@ -4,15 +4,19 @@
 #' @title Fits a multivariate Gaussian mixture model to given data via MLE
 #' 
 #' @keywords internal
-fit_sampleQC_mle_cpp <- function(x, init_gamma_i, groups, D, J, K, N, n_iter) {
-    .Call(`_SampleQC_fit_sampleQC_mle_cpp`, x, init_gamma_i, groups, D, J, K, N, n_iter)
+fit_sampleQC_mle_cpp <- function(x, init_gamma_i, groups, D, J, K, N, n_iter, seed) {
+    .Call(`_SampleQC_fit_sampleQC_mle_cpp`, x, init_gamma_i, groups, D, J, K, N, n_iter, seed)
 }
 
 #' @title Robustly fits a multivariate Gaussian mixture model to given data
 #' 
 #' @keywords internal
-fit_sampleQC_robust_cpp <- function(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, track = FALSE) {
-    .Call(`_SampleQC_fit_sampleQC_robust_cpp`, x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, track)
+fit_sampleQC_robust_cpp <- function(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, seed, track = FALSE) {
+    .Call(`_SampleQC_fit_sampleQC_robust_cpp`, x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, seed, track)
+}
+
+set_seed_cpp <- function(seed) {
+    invisible(.Call(`_SampleQC_set_seed_cpp`, seed))
 }
 
 print_vector <- function(vec, vec_name) {

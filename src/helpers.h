@@ -1,5 +1,8 @@
 #include <RcppArmadillo.h>
 
+// setting seed
+void set_seed_cpp(uint seed);
+
 // debugging stuff
 void print_vector(arma::vec vec, const char* vec_name);
 void print_matrix(arma::mat m, const char* m_name, int n_to_print=0);

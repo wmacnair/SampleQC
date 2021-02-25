@@ -33,16 +33,20 @@ test_that("does sample function work?", {
 
 test_that("automatic handling of annot_disc, annot_continuous", {
     # run default
-    qc_obj    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
-        subsample=20, n_times=5, n_cores=1)
+    suppressMessages({
+        qc_obj    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
+            subsample=20, n_times=5, n_cores=1)
+    })
 
     # get right type of output
     expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'N_cat', 'mito_cat', 'counts_cat'))
     expect_equal(metadata(qc_obj)$annots$cont, c('log_N', 'med_mito', 'med_counts'))
 
     # run default
-    qc_obj    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
-        annots_disc=annot_disc, subsample=20, n_times=5, n_cores=1)
+    suppressMessages({
+        qc_obj    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
+            annots_disc=annot_disc, subsample=20, n_times=5, n_cores=1)
+    })
 
     # get right type of output
     expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'annot_1', 'N_cat', 'mito_cat', 'counts_cat'))
@@ -65,11 +69,11 @@ test_that("MMD seeds should be replicable", {
         centre_samples, scale_samples)
 
     # do it once
-    set.seed(123)
-    mmds_1      = .calc_mmd_mat(sample_list, mat_list,
-        n_times, subsample, sigma, n_cores)
-    set.seed(123)
-    mmds_2      = .calc_mmd_mat(sample_list, mat_list,
-        n_times, subsample, sigma, n_cores)
-    expect_equal(mmds_1, mmds_1)
+    invisible({
+        mmds_1      = .calc_mmd_mat(sample_list, mat_list,
+            n_times, subsample, sigma, n_cores)
+        mmds_2      = .calc_mmd_mat(sample_list, mat_list,
+            n_times, subsample, sigma, n_cores)
+    })
+    expect_equal(mmds_1, mmds_2)
 })

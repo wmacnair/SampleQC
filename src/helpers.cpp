@@ -5,6 +5,14 @@ using namespace Rcpp;
 // [[Rcpp::depends(Rcpp)]]
 
 // helpers
+
+// [[Rcpp::export]]
+void set_seed_cpp(uint seed) {
+  Rcpp::Environment base_env("package:base");
+  Rcpp::Function set_seed_r = base_env["set.seed"];
+  set_seed_r(seed);
+}
+
 // [[Rcpp::export]]
 void print_vector(arma::vec vec, const char* vec_name) {
   int J = vec.size();
@@ -36,6 +44,7 @@ void print_ivector(arma::uvec vec, const char* vec_name) {
   }
   Rprintf("\n");
 }
+
 // [[Rcpp::export]]
 arma::vec reorder_vector(arma::vec x, arma::uvec idx) {
   int K = x.n_elem;

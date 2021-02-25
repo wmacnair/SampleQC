@@ -4,7 +4,7 @@
 \alias{fit_sampleQC_mle_cpp}
 \title{Fits a multivariate Gaussian mixture model to given data via MLE}
 \usage{
-fit_sampleQC_mle_cpp(x, init_gamma_i, groups, D, J, K, N, n_iter)
+fit_sampleQC_mle_cpp(x, init_gamma_i, groups, D, J, K, N, n_iter, seed)
 }
 \description{
 Fits a multivariate Gaussian mixture model to given data via MLE

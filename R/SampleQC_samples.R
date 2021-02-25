@@ -61,7 +61,7 @@
 calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 
     'log_feats', 'logit_mito'), annots_disc=NULL, annots_cont=NULL, 
     n_cores=4, sigma, subsample=200, n_times=10,
-    centre_samples=TRUE, scale_samples=FALSE) {
+    centre_samples=TRUE, scale_samples=FALSE, seed = 22) {
     # check some inputs
     if( missing(sigma) )
         sigma   = length(qc_names)
@@ -82,6 +82,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
         n_times, subsample, sigma, n_cores)
 
     # cluster on basis of mmd_mat
+    set.seed(seed)
     mmd_graph   = .make_mmd_graph(mmd_mat, n_nhbrs=5)
     group_ids   = .cluster_mmd_graph(mmd_graph)
 
@@ -221,21 +222,16 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     if (n_cores == 1) {
         bpparam = SerialParam()
     } else {
-        bpparam = MulticoreParam(workers=n_cores, RNGseed=bp_seed, 
-            progressbar=TRUE, tasks=50)
+        bpparam = MulticoreParam(workers = n_cores, RNGseed = bp_seed, 
+            progressbar = TRUE)
     }
     # iterate through them
     n_combns    = nrow(ij_grid)
     message('  calculating ', n_combns, 
         ' sample-sample MMDs:')
-        # ' sample-sample MMDs (. = 20, one row ~= 1000):\n  ', appendLF=FALSE)
     bpstart(bpparam)
     mmd_means   = bplapply(
         seq_len(n_combns), function(r) {
-            # if( (r%%20) == 0 )
-            #     message(".", appendLF=FALSE)
-            # if( (r%%1000) == 0 )
-            #     message("\n  ", appendLF=FALSE)
             # prep
             sample_i    = as.character(ij_grid[r, 'sample_i'])
             sample_j    = as.character(ij_grid[r, 'sample_j'])
@@ -248,8 +244,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
                 function(z) return(.dist_fn(mat_i, mat_j, subsample, sigma)), 
                 numeric(1))
             return(mean(mmd_vec))
-        }, BPPARAM=bpparam)
-    # message("\n", appendLF=FALSE)
+        }, BPPARAM = bpparam)
     bpstop(bpparam)
 
     # put into data.table, add reverse versions

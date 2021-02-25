@@ -15,6 +15,7 @@ fit_sampleQC_robust_cpp(
   em_iters,
   mcd_alpha,
   mcd_iters,
+  seed,
   track = FALSE
 )
 }

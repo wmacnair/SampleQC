@@ -276,7 +276,7 @@ arma::mat extract_p_jk(arma::mat gamma_i, arma::uvec groups, int J, int K, int N
 //' 
 //' @keywords internal
 // [[Rcpp::export]]
-List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups, int D, int J, int K, int N, int n_iter) {
+List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups, int D, int J, int K, int N, int n_iter, uint seed) {
   // declare required variables
   arma::vec mu_0(D);
   arma::mat gamma_i(N, K);
@@ -289,6 +289,9 @@ List fit_sampleQC_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups
   arma::uvec k_order(K);
   arma::uvec z(N);
   arma::mat p_jk(J, K);
+
+  // set seed
+  set_seed_cpp(seed);
 
   // initialize
   mu_0      = arma::mean(x, 0).t();

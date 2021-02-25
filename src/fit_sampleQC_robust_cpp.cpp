@@ -448,7 +448,7 @@ arma::uvec reorder_z(arma::uvec z, arma::uvec idx) {
 //' 
 //' @keywords internal
 // [[Rcpp::export]]
-List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, bool track = false) {
+List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, uint seed, bool track = false) {
   // declare required variables
   arma::vec mu_0(D, arma::fill::zeros);
   arma::mat alpha_j(J, D, arma::fill::zeros);
@@ -470,6 +470,9 @@ List fit_sampleQC_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, 
   // checks
   if ( (mcd_alpha < 0) | (mcd_alpha >= 1) )
     throw "'mcd_alpha' must be between 0 and 1";
+
+  // set seed
+  set_seed_cpp(seed);
 
   // initialize
   mu_0      = arma::mean(x, 0).t();

@@ -1,6 +1,6 @@
 context("Setters and getters")
 # pkg_dir     = '/home/will/work/packages/SampleQC'
-# devtools::document(pkg_dir); devtools::test(pkg_dir)
+# Rcpp::compileAttributes(pkg_dir); devtools::document(pkg_dir); devtools::test(pkg_dir)
 
 ################
 # set up

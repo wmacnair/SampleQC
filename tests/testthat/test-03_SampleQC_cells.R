@@ -20,7 +20,10 @@ qc_dt       = make_qc_dt(qc_df, qc_names)
 
 # run mmds
 annot_disc  = c('annot_1')
-qc_obj      = calculate_sample_to_sample_MMDs(qc_dt, qc_names, subsample=20, n_times=5, n_cores=1)
+suppressMessages({
+    qc_obj      = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
+        subsample=20, n_times=5, n_cores=1)
+})
 
 # define K_list
 K_list      = rep(1, get_n_groups(qc_obj))
@@ -58,6 +61,15 @@ test_that("parameter specifications for one vs multiple sample clusters are corr
     expect_error(fit_sampleQC(qc_obj, K_list=c(1, -1, 2, 1)))
 
     # names of output lists
+})
+
+test_that("seeds are replicable", {
+    K_list_2   = rep(2, length(K_list))
+    set.seed(123)
+    suppressMessages({fit_1 = fit_sampleQC(qc_obj, K_list = K_list_2)})
+    set.seed(123)
+    suppressMessages({fit_2 = fit_sampleQC(qc_obj, K_list = K_list_2)})
+    expect_equal(fit_1, fit_2)
 })
 
 test_that("z and mahalanobis distances agree", {
