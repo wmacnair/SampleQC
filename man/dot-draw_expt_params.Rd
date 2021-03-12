@@ -4,7 +4,7 @@
 \alias{.draw_expt_params}
 \title{Draws experiment-level parameters}
 \usage{
-.draw_expt_params(n_groups, n_cells, cells_p_s, D, K, qc_names)
+.draw_expt_params(n_groups, n_cells, cells_p_s, D, K, qc_names, sel_ks = NULL)
 }
 \arguments{
 \item{n_groups}{Number of sample groups, each of which is composed of

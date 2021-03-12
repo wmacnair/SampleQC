@@ -10,7 +10,8 @@ sim_experiment(
   cells_p_s = 2000,
   D = 3,
   K = 4,
-  qc_names = c("log_counts", "log_feats", "logit_mito")
+  qc_names = c("log_counts", "log_feats", "logit_mito"),
+  sel_ks = NULL
 )
 }
 \arguments{

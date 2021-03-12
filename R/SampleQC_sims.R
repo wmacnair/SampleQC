@@ -49,10 +49,10 @@
 #' 
 #' @export
 sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4, 
-    qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
+    qc_names=c('log_counts', 'log_feats', 'logit_mito'), sel_ks = NULL) {
     # draw experiment-level parameters
     expt_params = .draw_expt_params(n_groups, n_cells, cells_p_s, 
-        D, K, qc_names)
+        D, K, qc_names, sel_ks)
 
     # do for each
     group_sims  = lapply(
@@ -107,7 +107,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #'
 #' @return list of parameters
 #' @keywords internal
-.draw_expt_params <- function(n_groups, n_cells, cells_p_s, D, K, qc_names) {
+.draw_expt_params <- function(n_groups, n_cells, cells_p_s, D, K, qc_names, sel_ks = NULL) {
     # label groups
     group_names = sprintf('QC%01d', seq_len(n_groups))
 
@@ -131,7 +131,15 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     Sigma_k     = .draw_Sigma_k(D, K)
 
     # select which for each group
-    sel_ks      = .draw_sel_ks(K, n_groups)
+    if (is.null(sel_ks)) {
+        sel_ks      = .draw_sel_ks(K, n_groups)
+    } else {
+        assert_that(
+            nrow(sel_ks) == n_groups,
+            ncol(sel_ks) == K
+            )
+        assert_that(is.logical(sel_ks))
+    }
 
     # generate p_out params for each
     p_out_0s    = .draw_p_out_0s(n_groups)
@@ -234,13 +242,13 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     # beta_k ~ MVN, based on real data
     beta_0          = matrix(c(0, 0, 0), nrow=1)
     corr_mat        = diag(D)
-    corr_mat[1,2]   = 0.9
-    corr_mat[1,3]   = -0.5
-    corr_mat[2,3]   = -0.5
+    corr_mat[1,2]   = 0.95
+    corr_mat[1,3]   = -0.6
+    corr_mat[2,3]   = -0.6
     corr_mat        = corr_mat + t(corr_mat)
     diag(corr_mat)  = 1
 
-    # check is valid correlatin matrix
+    # check is valid correlation matrix
     assert_that( all(eigen(corr_mat)$values > 0) )
 
     # make into sigma matrxi
@@ -253,7 +261,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 
     # put ks in correct order
     k_order         = order(beta_k[, 1])
-    beta_k          = beta_k[ k_order, ]
+    beta_k          = beta_k[k_order, , drop = FALSE]
 
     # check outputs
     assert_that( ncol(beta_k) == D, 
@@ -610,7 +618,7 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return ?
 #' @keywords internal
 .draw_delta_jk <- function(D, J, K) {
-    if (TRUE) {
+    if (FALSE) {
         # delta_jk ~ MVN
         delta_0         = matrix(c(0, 0, 0), nrow=1)
         corr_mat        = diag(D)

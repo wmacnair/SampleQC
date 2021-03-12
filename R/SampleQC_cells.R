@@ -230,60 +230,21 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL,
     J           = length(sample_list)
     N           = nrow(x)
 
-    # centre x around group medians, for sensible GMM initialization
-    grp_medians = vapply(
-        seq_len(J), function(j) apply(x[groups == j, ], 2, median),
-        numeric(ncol(x))) %>% t
-    x_centred   = x - grp_medians[groups, ]
-
-    # initialize via GMM over whole dataset
-    message('fitting GMM to subset for initialization')
-    model_spec  = "EVE"
-    sample_idx  = sample(N, min(N, 1e4))
-    x_sample    = x_centred[sample_idx, ]
-    mclust_obj  = mclustBIC(
-        x_sample, G=K, modelNames=model_spec, 
-        verbose=FALSE
-        )
+    # initialize clusters
+    init_clusts = .init_clusts(x, groups, J, K, N)
     
     # run EM code
     if (method == 'robust') {
-        if (K == 1) {
-            init_z      = rep(0,N)
-        } else {
-            message('initializing cluster membership')
-            # fit clusters
-            init_z      = summaryMclustBIC(mclust_obj, x_centred,
-                G=K, modelNames=model_spec)$classification-1
-            # check that it worked
-            init_K      = length(unique(init_z))
-            if ( init_K != K ) {
-                warning("initialization didn't find ", K, 
-                    " clusters; running with ", init_K, " instead")
-                
-                # couple of tweaks
-                K       = init_K
-                init_z  = as.integer(factor(init_z)) - 1
-            }
-        }
         message('running robust EM algorithm')
         fit_obj = fit_sampleQC_robust_cpp(
-            x, init_z, groups_0, D, J, K, N, 
+            x, init_clusts$init_z, groups_0, D, J, K, N, 
             em_iters, mcd_alpha, mcd_iters, track
             )
 
     } else if (method == 'mle') {
-        if (K == 1) {
-            init_gamma  = matrix(rep(0,N), ncol=1)
-        } else {
-            message('initializing cluster membership')
-            init_gamma  = summaryMclustBIC(mclust_obj, x_centred, 
-                G=K, modelNames=model_spec)$z
-        }
-
         message('running EM algorithm')
         fit_obj = fit_sampleQC_mle_cpp(
-            x, init_gamma, groups_0, 
+            x, init_clusts$init_gamma, groups_0, 
             D, J, K, N, em_iters)
     }
 
@@ -307,6 +268,76 @@ fit_sampleQC <- function(qc_obj, K_all=NULL, K_list=NULL, n_cores=NULL,
     fit_obj$outliers_dt = .calc_outliers_dt(fit_obj, x, groups, alpha)
 
     return(fit_obj)
+}
+
+#' Initializes clusters
+#' 
+#' @param x Matrix of QC values
+#' @param groups sample_id labels as integers
+#' @param J Number of samples
+#' @param K Number of requested clusters
+#' @param N Number of observations
+#' 
+#' @importFrom assertthat assert_that
+#' @importFrom magrittr "%>%"
+#' @importFrom mclust mclustBIC summaryMclustBIC
+#'
+#' @return list, containing lots of cell outlier information
+#' @keywords internal
+.init_clusts <- function(x, groups, J, K, N) {
+    # K = 1 is special case
+    if (K == 1) {
+        init_z      = rep(0,N)
+        init_gamma  = matrix(rep(0,N), ncol=1)
+        return(list(init_gamma = init_gamma, init_z = init_z))
+    }
+
+    # centre x around group medians, for sensible GMM initialization
+    grp_medians = vapply(
+        seq_len(J), function(j) apply(x[groups == j, ], 2, median),
+        numeric(ncol(x))) %>% t
+    x_centred   = x - grp_medians[groups, ]
+
+    # try to initialize clusters, multiple times if necessary
+    n_tries     = 5
+    n           = 1
+    not_done    = TRUE
+    message('fitting GMM to subset for initialization')
+    while (n <= n_tries & not_done) {
+        # take sample
+        sample_idx  = sample(N, min(N, 1e4))
+        x_sample    = x_centred[sample_idx, ]
+
+        # fit mclust model
+        model_spec  = "EVE"
+        mclust_obj  = mclustBIC(x_sample, G = K, modelNames = model_spec,
+            verbose = FALSE )
+
+        # fit clusters
+        mclust_init = summaryMclustBIC(mclust_obj, x_centred,
+            G = K, modelNames = model_spec)
+        K_mclust    = length(unique(mclust_init$classification))
+        not_done    = K_mclust != K
+        n           = n + 1
+    }
+
+    if (K_mclust == K) {
+        message('initializing cluster membership')
+        init_z      = mclust_init$classification - 1
+        init_gamma  = mclust_init$z
+    } else {
+        warning(strwrap(prefix = " ", initial = "",
+            "Mclust struggled to initialize, using random initialization instead.
+            This may indicate that the selected value of K is too high."))        
+        fake_data   = exp(matrix(rnorm(N*K), ncol = K))
+        init_gamma  = fake_data / rowSums(fake_data)
+        rownames(init_gamma) = rownames(x)
+        init_z      = apply(init_gamma, 1, which.max) - 1
+    }
+    assert_that(all.equal(rowSums(init_gamma), rep(1, N), check.names = FALSE))
+    assert_that(length(unique(init_z)) == K)
+
+    return(list(init_gamma = init_gamma, init_z = init_z))
 }
 
 #' DEPRECATED: Calculate proportions of cells within each sample allocated 
