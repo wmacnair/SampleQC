@@ -60,8 +60,7 @@
 #' @export
 calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 
     'log_feats', 'logit_mito'), annots_disc=NULL, annots_cont=NULL, 
-    n_cores=4, sigma, subsample=200, n_times=10,
-    centre_samples=TRUE, scale_samples=FALSE, seed = 22) {
+    n_cores=4, sigma=length(qc_names), subsample=100, n_times=20, seed = 22) {
     # check some inputs
     if( missing(sigma) )
         sigma   = length(qc_names)
@@ -74,8 +73,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     n_samples   = length(sample_list)
 
     # split qc metric values into one matrix per sample
-    mat_list    = .calc_mat_list(qc_dt, qc_names, sample_list, 
-        centre_samples, scale_samples)
+    mat_list    = .calc_mat_list(qc_dt, qc_names, sample_list)
 
     # calculate mmds
     mmd_mat     = .calc_mmd_mat(sample_list, mat_list, 
@@ -175,16 +173,20 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 #' @return List of matrices
 #' 
 #' @keywords internal
-.calc_mat_list <- function(qc_dt, qc_names, sample_list, centre_samples, scale_samples) {
-    # scale overall matrix
-    qc_mat_all  = apply(as.matrix(qc_dt[ , qc_names, with=FALSE ]), 2, scale)
+.calc_mat_list <- function(qc_dt, qc_names, sample_lists) {
+    # do PCA on overall matrix
+    qc_mat      = as.matrix(qc_dt[ , qc_names, with=FALSE ])
+    pca_obj     = prcomp(qc_mat, center = TRUE, scale. = TRUE)
+    pca_qc      = pca_obj$x
+
+    # scale
+    pca_qc      = apply(pca_qc, 2, scale)
 
     # make list of individual matrices, scaled if necessary
     sample_ids  = qc_dt$sample_id
     mat_list    = lapply(sample_list, function(s) {
-        qc_mat  = qc_mat_all[ sample_ids == s, ]
-        qc_mat  = apply(qc_mat, 2, scale, 
-            center=centre_samples, scale=scale_samples)
+        qc_mat  = pca_qc[ sample_ids == s, ]
+        qc_mat  = apply(qc_mat, 2, scale, center = TRUE, scale = FALSE)
         return(qc_mat)
     }) %>% setNames(sample_list)
 
