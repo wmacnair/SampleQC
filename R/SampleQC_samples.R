@@ -46,8 +46,6 @@
 #' this number
 #' @param n_times How many times do we sample MMD between each pair of samples?
 #' (if subsampled, MMD is a stochastic value)
-#' @param centre_samples,scale_samples Should we centre or scale the values 
-#' within each sample before calculating MMD?
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
@@ -127,9 +125,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     mmd_params  = list(
         sigma           = sigma, 
         subsample       = subsample, 
-        n_times         = n_times, 
-        centre_samples  = centre_samples, 
-        scale_samples   = scale_samples
+        n_times         = n_times
         )
 
     # put together into one object
@@ -165,15 +161,13 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 #' @param qc_dt Data.table of QC metrics for all cells and samples
 #' @param qc_names List of metrics to actually use for calculating 
 #' @param sample_list List of samples to iterate through
-#' @param centre_samples,scale_samples Should we centre or scale the values 
-#' within each sample before calculating MMD?
 #'
 #' @importFrom magrittr "%>%"
 #' 
 #' @return List of matrices
 #' 
 #' @keywords internal
-.calc_mat_list <- function(qc_dt, qc_names, sample_lists) {
+.calc_mat_list <- function(qc_dt, qc_names, sample_list) {
     # do PCA on overall matrix
     qc_mat      = as.matrix(qc_dt[ , qc_names, with=FALSE ])
     pca_obj     = prcomp(qc_mat, center = TRUE, scale. = TRUE)
