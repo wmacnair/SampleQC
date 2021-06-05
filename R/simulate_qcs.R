@@ -1,11 +1,5 @@
-# SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
-# for single cell RNA-seq
-# SampleQC_sims.R
-# Complex simulations of good and bad quality cells
-
-# devtools::load_all('~/work/packages/SampleQC')
-# devtools::document('~/work/packages/SampleQC')
-
+#' simulate_qcs
+#'
 #' Simulates QC metrics for whole experiment
 #' 
 #' @description 
@@ -48,7 +42,7 @@
 #' means and covariance matrices)
 #' 
 #' @export
-sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4, 
+simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4, 
     qc_names=c('log_counts', 'log_feats', 'logit_mito'), sel_ks = NULL) {
     # draw experiment-level parameters
     expt_params = .draw_expt_params(n_groups, n_cells, cells_p_s, 
@@ -932,87 +926,4 @@ sim_experiment <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
         )
 
     return(sims_list)
-}
-
-#' Generate fake qc_df object for testing
-#'
-#' @importFrom data.table data.table rbindlist ":="
-#' @return data.frame
-#' @keywords internal
-.make_toy_qc_df <- function() {
-    # generate sample means
-    J               = 10
-    N_per_sample    = as.integer(exp(rnorm(J, log(200), 1)))
-    mu_log_counts   = rnorm(J, log(4000), 0.1)
-    mu_log_feats    = mu_log_counts - 0.5 + rnorm(J, 0, 0.1)
-    mu_logit_mito   = rnorm(J, -3, 1)
-
-    # generate cell data
-    df_list = lapply(seq_len(J), function(j) {
-        # unpack
-        N           = N_per_sample[[j]]
-        mu_counts   = mu_log_counts[[j]]
-        mu_feats    = mu_log_feats[[j]]
-        mu_mito     = mu_logit_mito[[j]]
-
-        # generate random data
-        df  = data.frame(
-            sample_id   = sprintf('sample%02d', j),
-            annot_1     = sprintf('annot%02d', j),
-            log_counts  = rnorm(N, mu_counts, 1)
-            )
-        df$log_feats    = (df$log_counts - mu_counts) + mu_feats + rnorm(N, 0, 0.01)
-        df$mito_prop    = plogis(rnorm(N, mu_mito, 0.1))
-
-        return(df)
-    })
-    qc_df   = do.call(rbind, df_list)
-
-    # add cell_id
-    qc_df$cell_id = sprintf('cell%04d', seq_len(nrow(qc_df)))
-    n_cols  = ncol(qc_df)
-    qc_df   = qc_df[, c(n_cols, seq_len((n_cols-1)))]
-
-    return(qc_df)
-}
-
-#' Generate fake sce object for testing
-#'
-#' @importFrom SingleCellExperiment SingleCellExperiment
-#' @return sce
-#' @keywords internal
-.make_toy_sce <- function() {
-    # generate sample_ids
-    J               = 10
-    N_per_sample    = as.integer(exp(rnorm(J, log(200), 1)))
-    sample_ids      = rep(sprintf('sample%02d', seq_len(J)), times=N_per_sample)
-    annot_1         = rep(sprintf('annot%02d', seq_len(J)), times=N_per_sample)
-
-    # generate genes
-    n_genes         = 100
-    gene_names      = sprintf('gene%03d', seq_len(n_genes))
-    n_mt            = 13
-    mt_genes        = sprintf('mt-%02d', seq_len(n_mt))
-    gene_names[seq_len(n_mt)]  = mt_genes
-
-    # make count matrix
-    n_cells         = length(sample_ids)
-    counts_mat      = matrix(rpois(n_cells*n_genes, lambda=10), ncol=n_cells)
-
-    # make column data
-    cols_df         = data.frame(
-        cell_id     = sprintf('cell%04d', seq_len(n_cells)),
-        sample_id   = factor(sample_ids),
-        annot_1     = factor(annot_1)
-        )
-
-    # make sce object
-    sce         = SingleCellExperiment(
-        list(counts=counts_mat),
-        colData = cols_df
-        )
-    colnames(sce)   = cols_df$cell_id
-    rownames(sce)   = gene_names
-
-    return(sce)
 }

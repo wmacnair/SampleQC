@@ -69,8 +69,8 @@ for (g in group_list) {
     samples_g   = sort(colData(qc_obj)$sample_id[ colData(qc_obj)$group_id == g ])
     for (s in samples_g) {
         cat('### ', s, ' \n')
-        g_fit   = plot_fit_over_biaxials_one_sample(qc_obj, s)
-        g_out   = plot_outliers_one_sample(qc_obj, s)
+        g_fit   = plot_fit_over_biaxials(qc_obj, s)
+        g_out   = plot_outliers(qc_obj, s)
         g       = g_fit / g_out
         print(g)
         cat('\n\n')

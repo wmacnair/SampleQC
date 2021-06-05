@@ -1,4 +1,4 @@
-context("Sample-level functions")
+context("Pairwise MMDs")
 # pkg_dir     = '/home/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
 # devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-02_SampleQC_samples.R'))
@@ -28,13 +28,13 @@ annot_disc  = c('annot_1')
 
 test_that("does sample function work?", {
     # do they work ok?
-    expect_is(calculate_sample_to_sample_MMDs(qc_dt, qc_names, subsample=20, n_times=5, n_cores=1), 'SingleCellExperiment')
+    expect_is(calc_pairwise_mmds(qc_dt, qc_names, subsample=20, n_times=5, n_cores=1), 'SingleCellExperiment')
 })
 
 test_that("automatic handling of annot_disc, annot_continuous", {
     # run default
     suppressMessages({
-        qc_obj    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
+        qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
             subsample=20, n_times=5, n_cores=1)
     })
 
@@ -44,7 +44,7 @@ test_that("automatic handling of annot_disc, annot_continuous", {
 
     # run default
     suppressMessages({
-        qc_obj    = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
+        qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
             annots_disc=annot_disc, subsample=20, n_times=5, n_cores=1)
     })
 
@@ -65,8 +65,7 @@ test_that("MMD seeds should be replicable", {
     subsample       = 100
 
     # split qc metric values into one matrix per sample
-    mat_list    = .calc_mat_list(qc_dt, qc_names, sample_list,
-        centre_samples, scale_samples)
+    mat_list    = .calc_mat_list(qc_dt, qc_names, sample_list)
 
     # do it once
     invisible({

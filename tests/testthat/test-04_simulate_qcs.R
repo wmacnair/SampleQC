@@ -1,4 +1,4 @@
-context("Simulations")
+context("Simulating QC data")
 # pkg_dir     = '/home/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
 # devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-04_SampleQC_sims.R'))
@@ -113,7 +113,7 @@ test_that(".sim_sample_group works", {
     expect_type(sims_group, 'list')
 })
 
-test_that("sim_experiment works", {
+test_that("simulate_qcs works", {
     # specify default parameters
     n_groups    = 4
     n_cells     = 1e5
@@ -162,7 +162,7 @@ test_that("sim_experiment works", {
     expect_type(expt_params, 'list')
 })
 
-test_that("sim_experiment works", {
+test_that("simulate_qcs works", {
     # default parameters
     n_groups    = 4
     n_cells     = 1e5
@@ -210,7 +210,7 @@ test_that("sim_experiment works", {
     sims_list   = .process_outputs(group_sims, expt_params)
 
     # check whole thing
-    sims_list   = sim_experiment(n_groups, n_cells, cells_p_s, D, K)
+    sims_list   = simulate_qcs(n_groups, n_cells, cells_p_s, D, K)
     expect_type(expt_params, 'list')
 })
 

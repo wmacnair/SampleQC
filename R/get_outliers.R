@@ -1,39 +1,14 @@
-# SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
-# for single cell RNA-seq
-# devtools::load_all('~/work/packages/SampleQC')
-# devtools::document('~/work/packages/SampleQC')
-
-# SampleQC_setters_getters.R
-# Utility functions to define and extract values from a \code{qc_obj}.
-
-#' Extracts number of groups
-#' 
-#' @param qc_obj Output from \code{calculate_sample_to_sample_MMD}
-#' 
-#' @importFrom assertthat assert_that
-#' 
-#' @return number of groups identified by \code{calculate_sample_to_sample_MMD}
-#' @export
-get_n_groups <- function(qc_obj) {
-    # check ok
-    assert_that( .check_is_qc_obj(qc_obj) %in% c('mmd', 'fit'),
-        msg='not a SampleQC object')
-
-    # extract n_groups
-    n_groups    = metadata(qc_obj)$n_groups
-
-    return(n_groups)
-}
-
+#' get_outliers
+#'
 #' Extracts list of outliers
 #' 
-#' @param qc_obj Output from fit_sampleQC
+#' @param qc_obj Output from fit_sampleqc
 #' @param exc_groups (optional) List of sample groups to exclude.
 #' @param exc_clusters (optional) List of clusters to exclude. This is 
 #' intended for use when there are groups of cells with sufficient numbers to 
 #' be modelled as a group by \code{SampleQC}, but the user wishes to exclude 
 #' them (for example, a large cluster of cells with extremely high mitochondrial 
-#' proportions). In this case, \link{fit_sampleQC} would identify these 
+#' proportions). In this case, \link{fit_sampleqc} would identify these 
 #' as a valid celltype / mixture component and not outliers. Specifying 
 #' \code{exc_clusters} allows these to be removed, e.g. \code{exc_clusters=
 #' list(SG2=c(2,3))} would specify removing components 2 and 3 in sample group 
@@ -49,7 +24,7 @@ get_n_groups <- function(qc_obj) {
 get_outliers <- function(qc_obj, exc_groups=NULL, exc_clusters=NULL) {
     # check ok
     assert_that( .check_is_qc_obj(qc_obj) == 'fit',
-        msg='fit_sampleQC must be run before outliers can be returned')
+        msg='fit_sampleqc must be run before outliers can be returned')
     assert_that( all(exc_groups %in% metadata(qc_obj)$group_list),
         msg='invalid sample groups specified for exc_groups')
     assert_that( all(names(exc_clusters) %in% metadata(qc_obj)$group_list),

@@ -1,24 +1,5 @@
-# SampleQC: robust multivariate, multi-celltype, multi-sample quality control 
-# for single cell RNA-seq
-# SampleQC_samples.R
-# Code to estimate multivariate dissimilarities between samples, and use
-# this to identify groups of clusters whose cell QC should be fit 
-# together.
-
-# devtools::load_all('~/work/packages/SampleQC')
-# devtools::document('~/work/packages/SampleQC')
-
-
-# excellent set of colours copied from the CATALYST package, here:
-# https://bioconductor.org/packages/release/bioc/html/CATALYST.html
-.CLUSTER_COLS = c(
-    "#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72", "#B17BA6", 
-    "#FF7F00", "#FDB462", "#E7298A", "#E78AC3", "#33A02C", "#B2DF8A", 
-    "#55A1B1", "#8DD3C7", "#A6761D", "#E6AB02", "#7570B3", "#BEAED4", 
-    "#666666", "#999999", "#aa8282", "#d4b7b7", "#8600bf", "#ba5ce3", 
-    "#808000", "#aeae5c", "#1e90ff", "#00bfff", "#56ff0d", "#ffff00"
-    )
-
+#' calc_pairwise_mmds
+#'
 #' Calculates sample-to-sample MMD distances, clusters and embeds them
 #' 
 #' @description 
@@ -56,7 +37,7 @@
 #' @importFrom SingleCellExperiment SingleCellExperiment reducedDim<-
 #' @return slightly funky `sce` object
 #' @export
-calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts', 
+calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts', 
     'log_feats', 'logit_mito'), annots_disc=NULL, annots_cont=NULL, 
     n_cores=4, sigma=length(qc_names), subsample=100, n_times=20, seed = 22) {
     # check some inputs
@@ -366,7 +347,7 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
 }
 
 #' Calculates non-linear embeddings of MMD distances calculated by 
-#' calculate_sample_to_sample_MMDs
+#' calc_pairwise_mmds
 #' 
 #' @param mmd_mat MMD distances
 #' @param n_nhbrs How many neighbours for UMAP nearest neighbours graph
@@ -421,202 +402,4 @@ calculate_sample_to_sample_MMDs <- function(qc_dt, qc_names=c('log_counts',
     annot_vars      = intersect(annot_vars, dt_names)
 
     return(annot_vars)
-}
-
-#' Plots non-linear embeddings of MMD distances calculated by 
-#' embed_sample_to_sample_MMDs
-#' 
-#' @param qc_obj SampleQC object
-#' @param var_type Is this annotation discrete or continuous?
-#' @param sel_embed Which type of embedding to use
-#' 
-#' @importFrom assertthat assert_that
-#' @importFrom S4Vectors metadata
-#' @return NULL
-#' @export
-plot_embeddings <- function(qc_obj, var_type=c('discrete', 'continuous'), 
-    sel_embed=c('MDS', 'UMAP')) {
-    # check inputs
-    .check_is_qc_obj(qc_obj)
-    var_type    = match.arg(var_type)
-    sel_embed   = match.arg(sel_embed)
-
-    if (var_type == 'discrete') {
-        annot_vars  = metadata(qc_obj)$annots$disc
-    } else {
-        annot_vars  = metadata(qc_obj)$annots$cont
-    }
-    for (v in annot_vars) {
-        cat('### ', v, '\n')
-        g = .plot_one_embedding(qc_obj, v, var_type, sel_embed)
-        print(g)
-        cat('\n\n')
-    }
-}
-
-#' Plots non-linear embeddings of MMD distances calculated by 
-#' embed_sample_to_sample_MMDs
-#' 
-#' @param qc_obj SampleQC object
-#' @param v Which annotation variable to plot
-#' @param var_type Is this annotation discrete or continuous?
-#' @param sel_embed Which type of embedding to use
-#' 
-#' @importFrom assertthat assert_that
-#' @importFrom RColorBrewer brewer.pal
-#' @importFrom scales pretty_breaks
-#' @importFrom SingleCellExperiment reducedDim
-#' @importFrom ggplot2 ggplot aes_string geom_point geom_text
-#' @importFrom ggplot2 scale_x_continuous scale_y_continuous scale_fill_brewer
-#' @importFrom ggplot2 scale_fill_distiller scale_fill_manual
-#' @importFrom ggplot2 theme theme_bw labs
-#'
-#' @return ggplot object
-#' @keywords internal
-.plot_one_embedding <- function(qc_obj, v, var_type, sel_embed) {
-    # unpack
-    .check_is_qc_obj(qc_obj)    
-
-    # checks
-    assert_that( var_type %in% c('discrete', 'continuous') )
-    assert_that( sel_embed %in% c('MDS', 'UMAP') )
-
-    # make plot_dt
-    plot_dt     = data.table(
-        sample_id   = colData(qc_obj)$sample_id,
-        reducedDim(qc_obj, sel_embed)
-        )
-    # add annotations
-    if ( var_type=='discrete' ) {
-        tmp_dt      = rbindlist(colData(qc_obj)$annot_disc)
-    } else {
-        tmp_dt      = rbindlist(colData(qc_obj)$annot_cont)
-    }
-    plot_dt     = cbind(plot_dt, tmp_dt)
-    assert_that( v %in% names(plot_dt) )
-
-    # restrict to chosen embedding
-    if (var_type == 'discrete') {
-        n_cols      = length(unique(plot_dt[[v]]))
-        if (v %in% c('mito_cat', 'N_cat', 'counts_cat', 'totals_cat')) {
-            if (n_cols < 3)
-                col_vals    = rev(brewer.pal(n_cols, 'PiYG'))[c(1,3)]
-            else
-                col_vals    = rev(brewer.pal(n_cols, 'PiYG'))
-        } else {
-            col_vals    = .CLUSTER_COLS
-        }
-        # for N_cat, reverse order
-        if ( v %in% c('N_cat', 'counts_cat', 'totals_cat') )
-            col_vals    = rev(col_vals)
-
-        g = ggplot(plot_dt) + 
-            aes_string(
-                x=paste0(sel_embed, '1'), y=paste0(sel_embed, '2'), 
-                label='sample_id', fill=paste0("factor(", v, ")")
-                ) + 
-            geom_text(
-                hjust=0.5, vjust=1.5, colour='black', 
-                size=2, alpha=0.8
-                ) + 
-            geom_point( size=3, alpha=0.8, shape=21, colour='black' ) +
-            scale_x_continuous( breaks=pretty_breaks() ) + 
-            scale_y_continuous( breaks=pretty_breaks() )
-        if (n_cols > 2) {
-            g = g + scale_fill_manual( values=col_vals[seq_len(n_cols)] )
-        } else {
-            g = g + scale_fill_brewer( palette='Set1' )
-        }
-        g = g + 
-            theme_bw() + theme( aspect.ratio=1, axis.text=element_blank() ) + 
-            labs( fill=v )
-
-    } else if (var_type == 'continuous') {
-        # for some, reverse order
-        direction   = -1
-        if ( v %in% c('log_N', 'med_counts') )
-            direction   = 1
-
-        g = ggplot(plot_dt) + 
-            aes_string( x=paste0(sel_embed, '1'), y=paste0(sel_embed, '2'), 
-                label='sample_id', fill=v ) + 
-            geom_text(
-                hjust=0.5, vjust=1.5, 
-                colour='black', size=2, alpha=0.8
-                ) +
-            geom_point( size=3, alpha=0.8, shape=21, colour='black' ) +
-            scale_fill_distiller( palette='RdBu', breaks=pretty_breaks(), 
-                direction=direction ) + 
-            scale_x_continuous( breaks=pretty_breaks() ) + 
-            scale_y_continuous( breaks=pretty_breaks() ) +
-            theme_bw() + theme( aspect.ratio=1, axis.text=element_blank() )
-    }
-
-    # do nice label
-    label_list  = list(
-        group_id    = 'sample\ngroup', 
-        N_cat       = 'number\nof cells', 
-        mito_cat    = 'median\nmito propn.', 
-        counts_cat  = 'median\nlog10(counts)',
-        log_N       = 'log10(number\nof cells)', 
-        med_mito    = 'median\nmito propn.', 
-        med_counts  = 'median\nlog10(counts)'
-    )
-    g = g + labs( fill=label_list[[v]] )
-
-    return(g)
-}
-
-#' Plots heatmap of sample-sample distances (as measured by MMD)
-#' 
-#' @param qc_obj Outputs from function calculate_sample_to_sample_MMDs
-#' 
-#' @importFrom assertthat assert_that
-#' @importFrom SummarizedExperiment assay
-#' @importFrom S4Vectors metadata
-#' @importFrom magrittr "%>%"
-#' @importFrom data.table data.table ":=" melt as.data.table
-#' @importFrom scales pretty_breaks
-#' @importFrom ggplot2 ggplot aes geom_tile
-#' @importFrom ggplot2 scale_fill_distiller expand_limits
-#' @importFrom ggplot2 theme_bw theme element_blank element_text labs
-#'
-#' @return ggplot object
-#' @export
-plot_mmd_heatmap <- function(qc_obj) {
-    # some checks
-    .check_is_qc_obj(qc_obj)
-
-    # get stuff we need
-    mmd_mat     = assay(qc_obj, 'mmd')
-    n_times     = metadata(qc_obj)$mmd_params$n_times
-    
-    # do hierarchical clustering, use this to order the samples
-    hclust_obj  = hclust(as.dist(mmd_mat), method='complete')
-    sample_ord  = hclust_obj$labels[hclust_obj$order]
-
-    # make mmd_dt 
-    mmd_dt      = as.data.table(mmd_mat, keep.rownames = 'sample_i') %>% 
-        melt(id = 'sample_i', variable.name = 'sample_j', 
-            value.name='mmd_mean') %>%
-        .[, sample_i := factor(sample_i, levels=sample_ord) ] %>%
-        .[, sample_j := factor(sample_j, levels=sample_ord) ] %>%
-        .[ sample_i != sample_j ]
-
-    # plot
-    g = ggplot(mmd_dt) +
-        aes( x=sample_i, y=sample_j, fill=mmd_mean ) +
-        geom_tile() +
-        scale_fill_distiller(
-            palette='PiYG', direction=-1, 
-            breaks=pretty_breaks()
-            ) + 
-        expand_limits( fill=0 ) +
-        theme_bw() + theme( 
-            aspect.ratio    = 1,
-            axis.text.x     = element_blank(), 
-            axis.text.y     = element_text(size=6) ) +
-        labs( fill=sprintf('mean MMD\n(mean used\n%d subsamples)', n_times))
-
-    return(g)
 }
