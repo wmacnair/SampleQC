@@ -137,7 +137,8 @@ plot_embeddings <- function(qc_obj, var_type=c('discrete', 'continuous'),
         counts_cat  = 'median\nlog10(counts)',
         log_N       = 'log10(number\nof cells)', 
         med_mito    = 'median\nmito propn.', 
-        med_counts  = 'median\nlog10(counts)'
+        med_counts  = 'median\nlog10(counts)',
+        med_splice  = 'median\nlog2 splice ratio'
     )
     g = g + labs( fill=label_list[[v]] )
 
