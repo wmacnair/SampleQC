@@ -81,8 +81,8 @@ annots_cont     = NULL
 We then calculate distances between all the samples, and embed this matrix via dimensionality reduction options. `SampleQC` stores everything neatly in a `SingleCellExperiment` object (mainly in the `colData` entry).
 
 ```R
-qc_obj      = calculate_sample_to_sample_MMDs(qc_dt, qc_names, 
-    annots_disc=annots_disc, annots_cont=annots_cont, n_cores=4)
+qc_obj      = calc_pairwise_mmds(qc_dt, qc_names, 
+    annots_disc = annots_disc, annots_cont = annots_cont, n_cores = 4)
 print(table(colData(qc_obj)$group_id))
 ```
 
@@ -91,7 +91,7 @@ Next we fit Gaussian mixture models, either one to each of the sample groupings 
 To fit to each of the sample groupings individually, you use the parameter `K_list`. We recommend first specifying 1 component for each group and rendering a report: `K=1` is extremely quick to fit, and the diagnostic plots in the rendering allow you to check the appropriate number of components for each sample group.
 
 ```R
-qc_obj      = fit_sampleQC(qc_obj, K_list=rep(1, get_n_groups(qc_obj)))
+qc_obj      = fit_sampleqc(qc_obj, K_list=rep(1, get_n_groups(qc_obj)))
 ```
 
 Once the model has fit, you can render an html report and check whether it makes sense. 
@@ -103,18 +103,18 @@ save_dir    = '/home/work/my_project/qc/'
 dir.create(save_dir)
 
 # render the report
-make_SampleQC_report(qc_obj, save_dir, proj_name)
+make_sampleqc_report(qc_obj, save_dir, proj_name)
 ```
 
 This allows you to check whether the number of components for each group looks correct. If not, you can rerun with a different specification of `K_list`:
 ```R
-qc_obj      = fit_sampleQC(qc_obj, K_list=c(2,3,2,2))
+qc_obj      = fit_sampleqc(qc_obj, K_list=c(2,3,2,2))
 ```
 
 To fit one model to the whole of the dataset, you use the parameter `K_all`. You might want to do this when you have relatively few samples (e.g. 30 or fewer) and / or when your samples have very similar distributions of QC metrics.
 
 ```R
-qc_obj      = fit_sampleQC(qc_obj, K_all=2)
+qc_obj      = fit_sampleqc(qc_obj, K_all=2)
 ```
 
 Once you're happy that the model is identifying outliers correctly, you can extract the outliers found by `SampleQC`by the following:
