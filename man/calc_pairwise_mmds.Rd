@@ -9,6 +9,7 @@ calc_pairwise_mmds(
   qc_names = c("log_counts", "log_feats", "logit_mito"),
   annots_disc = NULL,
   annots_cont = NULL,
+  one_group_only = NULL,
   n_cores = 4,
   sigma = length(qc_names),
   subsample = 100,
@@ -25,6 +26,11 @@ sample-to-sample distances}
 \item{annots_disc, annots_cont}{Which annotating variables should be added
 to the SampleQC object? These should be entries in qc_dt. annots_disc
 indicates discrete variables; annots_cont continuous variables.}
+
+\item{one_group_only}{A TRUE/FALSE variable specifying whether samples
+should be first clustered into groups, or assumed to form one group. The
+default is to cluster when there more than 10 samples, and not cluster when
+there are fewer than ten samples.}
 
 \item{n_cores}{How many cores to parallelize over?}
 

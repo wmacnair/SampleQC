@@ -4,7 +4,7 @@
 \alias{.cluster_mmd_graph}
 \title{Cluster igraph object using Louvain clustering}
 \usage{
-.cluster_mmd_graph(mmd_graph)
+.cluster_mmd_graph(mmd_graph, one_group_only)
 }
 \arguments{
 \item{mmd_graph}{}

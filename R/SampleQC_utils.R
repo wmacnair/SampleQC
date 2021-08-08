@@ -143,7 +143,7 @@ get_n_groups <- function(qc_obj) {
 #' @keywords internal
 .make_toy_qc_df <- function() {
     # generate sample means
-    J               = 10
+    J               = 20
     N_per_sample    = as.integer(exp(rnorm(J, log(200), 1)))
     mu_log_counts   = rnorm(J, log(4000), 0.1)
     mu_log_feats    = mu_log_counts - 0.5 + rnorm(J, 0, 0.1)

@@ -1,7 +1,7 @@
 context("Simulating QC data")
 # pkg_dir     = '/home/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
-# devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-04_SampleQC_sims.R'))
+# devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-04_simulate_qcs.R'))
 
 ################
 # set up

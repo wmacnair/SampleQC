@@ -21,6 +21,10 @@
 #' @param annots_disc,annots_cont Which annotating variables should be added 
 #' to the SampleQC object? These should be entries in qc_dt. annots_disc 
 #' indicates discrete variables; annots_cont continuous variables.
+#' @param one_group_only A TRUE/FALSE variable specifying whether samples 
+#' should be first clustered into groups, or assumed to form one group. The 
+#' default is to cluster when there more than 10 samples, and not cluster when 
+#' there are fewer than ten samples.
 #' @param n_cores How many cores to parallelize over?
 #' @param sigma Scale for MMD kernel (defaults to length of qc_names)
 #' @param subsample Should we downsample the number of cells per sample to 
@@ -39,17 +43,22 @@
 #' @export
 calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts', 
     'log_feats', 'logit_mito'), annots_disc=NULL, annots_cont=NULL, 
-    n_cores=4, sigma=length(qc_names), subsample=100, n_times=20, seed = 22) {
+    one_group_only = NULL, n_cores=4, sigma=length(qc_names), 
+    subsample=100, n_times=20, seed = 22) {
     # check some inputs
     if( missing(sigma) )
         sigma   = length(qc_names)
     assert_that( length(sigma) == 1 )
     assert_that( sigma > 0 )
 
-    message('sample-level parts of SampleQC:')
     # get list of samples to compare
     sample_list = sort(unique(qc_dt$sample_id))
     n_samples   = length(sample_list)
+    if( is.null(one_group_only) )
+        one_group_only  = n_samples <= 10
+    assert_that( is.flag(one_group_only) )
+
+    message('sample-level parts of SampleQC:')
 
     # split qc metric values into one matrix per sample
     mat_list    = .calc_mat_list(qc_dt, qc_names, sample_list)
@@ -61,7 +70,7 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
     # cluster on basis of mmd_mat
     set.seed(seed)
     mmd_graph   = .make_mmd_graph(mmd_mat, n_nhbrs=5)
-    group_ids   = .cluster_mmd_graph(mmd_graph)
+    group_ids   = .cluster_mmd_graph(mmd_graph, one_group_only)
 
     # do embeddings
     mds_mat     = .embed_mds(mmd_mat)
@@ -297,15 +306,21 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
 #' 
 #' @param mmd_graph
 #'
-#' @importFrom igraph cluster_louvain
+#' @importFrom igraph gorder cluster_louvain
 #' @importFrom magrittr "%>%"
 #' @importFrom stringr str_match
 #' 
 #' @return vector of group_ids for all samples
 #' @keywords internal
-.cluster_mmd_graph <- function(mmd_graph) {
+.cluster_mmd_graph <- function(mmd_graph, one_group_only) {
     message('  clustering samples using MMD values')
-    # do clustering
+    # if not clustering, return one group for every sample
+    if (one_group_only == TRUE) {
+        group_ids   = rep('SG1', gorder(mmd_graph)) %>% factor
+        return(group_ids)
+    }
+
+    # otherwise do clustering
     cluster_obj = cluster_louvain(mmd_graph)
     group_ids   = cluster_obj$membership
 
@@ -396,6 +411,13 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
     if (length(missing_vals) > 0)
         warning("These variables were requested as annotations, but 
             aren't present in qc_dt:\n", paste(missing_vals, collapse=', '))
+
+    # check sample_id wasn't specified
+    if ('sample_id' %in% specified)
+        warning(paste0("'sample_id' was specified as an annotation. This", 
+            "variable is reserved for determining samples, so was removed ",
+            "from the annotations."))
+    specified       = setdiff(specified, 'sample_id')
 
     # add automatic names
     annot_vars      = c(specified, setdiff(auto, specified))
