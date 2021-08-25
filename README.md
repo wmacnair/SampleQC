@@ -124,6 +124,9 @@ Once you're happy that the model is identifying outliers correctly, you can extr
 ```R
 outliers_dt = get_outliers(qc_obj)
 ```
+# Preprint
+
+To replicate the analyses, in the preprint, please go to the companion GitHub repo [here](https://github.com/wmacnair/SampleQC_paper_analyses).
 
 #  Bugs / Suggestions / Thoughts
 
