@@ -79,8 +79,8 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
 
     # define automatic names
     message('  adding annotation variables')
-    auto_disc   = c('N_cat', 'mito_cat', 'counts_cat')
-    auto_cont   = c('log_N', 'med_mito', 'med_counts')
+    auto_disc   = c('N_cat', 'counts_cat', 'feats_cat', 'mito_cat', 'splice_cat')
+    auto_cont   = c('log_N', 'med_counts', 'med_feats', 'med_mito', 'med_splice')
     annots_disc = .process_annot_vars(qc_dt, annots_disc, auto_disc)
     annots_cont = .process_annot_vars(qc_dt, annots_cont, auto_cont)
     disc_dt     = qc_dt[, c('sample_id', annots_disc), with=FALSE] %>% 

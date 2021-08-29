@@ -1,7 +1,7 @@
 context("Pairwise MMDs")
 # pkg_dir     = '/home/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
-# devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-02_SampleQC_samples.R'))
+# testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-02_calc_pairwise_mmds.R'))
 
 ################
 # set up
@@ -16,8 +16,11 @@ set.seed(seed)
 
 # generate toy dataset
 qc_df       = .make_toy_qc_df()
+
+# prep function
 qc_names    = c('log_counts', 'log_feats', 'logit_mito')
-qc_dt       = make_qc_dt(qc_df, qc_names)
+qc_dt       = make_qc_dt(qc_df, sample_var = 'sample_id', 
+    qc_names, annot_vars = 'annot_1')
 
 # specify dummy annotation
 annot_disc  = c('annot_1')
@@ -28,29 +31,35 @@ annot_disc  = c('annot_1')
 
 test_that("does sample function work?", {
     # do they work ok?
-    expect_is(calc_pairwise_mmds(qc_dt, qc_names, subsample=20, n_times=5, n_cores=1), 'SingleCellExperiment')
+    expect_is(calc_pairwise_mmds(qc_dt, qc_names, 
+        subsample = 20, n_times = 5, n_cores = 1), 
+      'SingleCellExperiment')
 })
 
 test_that("automatic handling of annot_disc, annot_continuous", {
     # run default
     suppressMessages({
-        qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
-            subsample=20, n_times=5, n_cores=1)
+      qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
+        subsample=20, n_times=5, n_cores=1)
     })
 
     # get right type of output
-    expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'N_cat', 'mito_cat', 'counts_cat'))
-    expect_equal(metadata(qc_obj)$annots$cont, c('log_N', 'med_mito', 'med_counts'))
+    expect_equal(metadata(qc_obj)$annots$disc, 
+      c('group_id', 'N_cat', 'counts_cat', 'feats_cat', 'mito_cat'))
+    expect_equal(metadata(qc_obj)$annots$cont, 
+      c('log_N', 'med_counts', 'med_feats', 'med_mito'))
 
     # run default
     suppressMessages({
-        qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
-            annots_disc=annot_disc, subsample=20, n_times=5, n_cores=1)
+      qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
+        annots_disc = annot_disc, subsample = 20, n_times = 5, n_cores = 1)
     })
 
     # get right type of output
-    expect_equal(metadata(qc_obj)$annots$disc, c('group_id', 'annot_1', 'N_cat', 'mito_cat', 'counts_cat'))
-    expect_equal(metadata(qc_obj)$annots$cont, c('log_N', 'med_mito', 'med_counts'))
+    expect_equal(metadata(qc_obj)$annots$disc, 
+      c('group_id', 'annot_1', 'N_cat', 'counts_cat', 'feats_cat', 'mito_cat'))
+    expect_equal(metadata(qc_obj)$annots$cont, 
+      c('log_N', 'med_counts', 'med_feats', 'med_mito'))
 })
 
 test_that("MMD seeds should be replicable", {

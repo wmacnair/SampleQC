@@ -1,6 +1,7 @@
 context("Fitting SampleQC model")
 # pkg_dir   = '/home/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
+# testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-03_fit_sampleqc.R'))
 
 ################
 # set up
@@ -16,7 +17,8 @@ set.seed(seed)
 # generate toy dataset
 sims_list = simulate_qcs(n_cells = 5e3)
 qc_names  = sims_list$expt_params$qc_names
-qc_dt     = sims_list$qc_out %>% make_qc_dt
+qc_dt     = make_qc_dt(sims_list$qc_out, sample_var = 'sample_id',
+  qc_names = qc_names)
 
 # run mmds
 annot_disc  = c('annot_1')

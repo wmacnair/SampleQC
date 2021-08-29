@@ -28,12 +28,19 @@ make_qc_dt <- function(qc_df, sample_var = 'sample_id',
   qc_names = c('log_counts', 'log_feats', 'logit_mito'), annot_vars = NULL) {
 
   # some checks
-  if (class(qc_df) == 'DFrame')
+  if ( 'DFrame' %in% class(qc_df) )
     qc_df      = as.data.frame(qc_df)
   assert_that( is.data.frame(qc_df), msg = "qc_df must be a data.frame" )
+
   assert_that( sample_var %in% colnames(qc_df),
     msg = sprintf("%s is listed as variable for samples but is not in data.frame", 
       sample_var))
+
+  reserved_ns  = c('sample_id', 'group_id', 'cell_id')
+  assert_that( length(intersect(annot_vars, reserved_ns)) == 0,
+    msg = paste0("The following variable names are reserved and cannot be used ", 
+      "as annot_vars:\n", paste(reserved_ns, collapse = ", ")))
+
   assert_that( all(annot_vars %in% names(qc_df)),
     msg = sprintf("the following variables are listed in annot_vars but not in qc_df:\n%s", 
       paste(setdiff(annot_vars, names(qc_df)), collapse = ", ")))

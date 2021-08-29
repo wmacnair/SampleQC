@@ -58,6 +58,11 @@ test_that("check inputs (data.frame)", {
   
   # error when bad sample_id variable requested
   expect_error(make_qc_dt(qc_df, sample_var = 'bad_var'))
+
+  # error when bad sample_id variable requested
+  expect_error(make_qc_dt(qc_df, annot_vars = 'sample_id'))
+  expect_error(make_qc_dt(qc_df, annot_vars = 'group_id'))
+  expect_error(make_qc_dt(qc_df, annot_vars = 'cell_id'))
   
   # error when bad annotations are requested
   expect_error(make_qc_dt(qc_df, sample_var = 'sample_id', 
