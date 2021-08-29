@@ -1,259 +1,450 @@
 # make_qc_dt.R
 # Make nice data.table of QC metrics
 
-#' Makes data.table of specified QC metrics
+#' Checks specified QC metrics and makes data.table for input to 
+#' \code{calc_pairwise_mmds}.
 #' 
-#' Extracts a \code{data.table} of QC metrics, either by calculating them from 
-#' a SingleCellExperiment object, or copying them from a \code{data.frame} that 
-#' the user has already made. Also does a little bit of checking of the inputs.
+#' Takes a \code{data.frame} of raw QC metrics, and makes a nice neat 
+#' \code{data.table} output that can be used in \pkg{SampleQC}. For example, 
+#' users with a \pkg{SingleCellExperiment} object \code{sce} may first run 
+#' \code{scater::calculateQCMetrics}, then call \code{make_qc_dt(colData(sce))}.
+#' We work with \code{data.frame}/\code{data.table} objects to have the most 
+#' flexible possible approach (and to save work on e.g. keeping up with changes
+#' to dependencies like \pkg{SingleCellExperiment} and \pkg{Seurat}).
 #' 
-#' WARNING: This bit of code definitely needs more testing / thought / 
-#' improvements... Please let me know if it falls over!
-#' @param x either SCE, or data.frame object containing calculated QC metrics
+#' This code also calculates some sample-level statistics, e.g. median log 
+#' library size per sample, and adds columns with binned values for these.
+#' 
+#' @param qc_df data.frame object containing calculated QC metrics
+#' @param sample_var which column of qc_df has sample labels? (e.g. sample, group, 
+#' batch, library)
 #' @param qc_names list of qc_names that need to be extracted
-#' @return qc_dt, a data.table containing the sample variable plus qc metrics
-#' @export
-make_qc_dt <- function(x, qc_names=c('log_counts', 'log_feats', 'logit_mito')) {
-    UseMethod("make_qc_dt")
-}
-
-#' Checks that input is ok, puts it into expected format
-#'
-#' @param x data.frame object containing calculated QC metrics
-#' @param qc_names list of qc_names that need to be extracted
+#' @param annot_vars list of user-specified sample-level annotations
 #' @importFrom assertthat assert_that
 #' @importFrom data.table setcolorder
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @export
-make_qc_dt.data.frame <- function(x, qc_names=c('log_counts', 'log_feats', 
-    'logit_mito')) {
-    # check that cell_id and sample_id are present
-    df_names    = colnames(x)
-    if ( !('cell_id' %in% df_names) )
-        stop('cell_id must be column of data.frame')
-    if ( !('sample_id' %in% df_names) )
-        stop('sample_id must be column of data.frame')
-    if ( length(unique(x$cell_id)) < nrow(x) )
-        stop('cell_id values must be unique')
+make_qc_dt <- function(qc_df, sample_var = 'sample_id', 
+  qc_names = c('log_counts', 'log_feats', 'logit_mito'), annot_vars = NULL) {
 
-    # put into data.table
-    qc_dt           = data.table(x)
+  # some checks
+  if (class(qc_df) == 'DFrame')
+    qc_df      = as.data.frame(qc_df)
+  assert_that( is.data.frame(qc_df), msg = "qc_df must be a data.frame" )
+  assert_that( sample_var %in% colnames(qc_df),
+    msg = sprintf("%s is listed as variable for samples but is not in data.frame", 
+      sample_var))
+  assert_that( all(annot_vars %in% names(qc_df)),
+    msg = sprintf("the following variables are listed in annot_vars but not in qc_df:\n%s", 
+      paste(setdiff(annot_vars, names(qc_df)), collapse = ", ")))
 
-    # check which names are present
-    non_mito_names  = setdiff(qc_names, c('logit_mito', 'mito_prop'))
-    missed_ns       = setdiff(non_mito_names, df_names)
-    if (length(missed_ns) > 0)
-        stop('the following qc metrics are missing from the input data.frame
-            \n:', paste(missed_ns, collapse=', '))
+  # set up qc_dt
+  qc_dt   = .init_qc_dt(qc_df, sample_var)
 
-    if ( ( ('logit_mito' %in% qc_names) & !('logit_mito' %in% df_names) ) & 
-        ( !('mito_prop' %in% df_names) | !('log_counts' %in% df_names) )
-        )
-        stop("'logit_mito' found in qc_names but neither 'mito_prop' or 
-            'logit_mito' is present in the input data.frame")
+  # add known metrics
+  if ('log_counts' %in% qc_names) {
+    qc_dt   = .add_log_counts(qc_dt, qc_df)
+  }
+  if ('log_feats' %in% qc_names) {
+    qc_dt   = .add_log_feats(qc_dt, qc_df)
+  }
+  if ('logit_mito' %in% qc_names) {
+    qc_dt   = .add_logit_mito(qc_dt, qc_df)
+  }
+  if ('log_splice' %in% qc_names) {
+    qc_dt   = .add_log_splice(qc_dt, qc_df)
+  }
 
-    if ('log_counts' %in% qc_names) {
-        assert_that(
-            all(qc_dt$log_counts >= 0), 
-            msg='All log_counts values should be >= 0.'
-            )
-    } else {
-        warning("'log_counts' is not present as a column - are you sure you 
-            want to do QC without log_counts?")        
-    }
+  # add unknown metrics
+  qc_dt   = .add_unknown_metrics(qc_dt, qc_df, qc_names)
 
-    # add logit_mito if necessary
-    if ( ('logit_mito' %in% qc_names) & !('logit_mito' %in% df_names) ) {
-        # check that we have log_counts
-        assert_that('log_counts' %in% df_names)
+  # add some useful annotations
+  qc_dt   = .add_qc_annots(qc_dt)
 
-        # do calculations
-        mito_props          = qc_dt$mito_prop
-        assert_that(all(mito_props >= 0) & all(mito_props <= 1))
-        total_counts        = 10^qc_dt$log_counts
-        qc_dt$logit_mito    = qlogis( (total_counts*mito_props +1) / 
-            (total_counts+2) )
-    }
+  # add specified annotation variables
+  qc_dt   = .add_annot_vars(qc_dt, qc_df, annot_vars)
+  
+  # put in nice order
+  setcolorder(qc_dt, c('cell_id', 'sample_id', qc_names))
 
-    # check logit_mito values
-    assert_that(all(is.finite(qc_dt$logit_mito)))
+  # double-check everything is ok
+  .check_qc_dt(qc_dt, qc_names, annot_vars)
 
-    # add some useful annotations
-    qc_dt       = .add_annotations(qc_dt)
-    
-    # put in nice order
-    setcolorder(qc_dt, c('cell_id', 'sample_id', qc_names))
-
-    # check values
-    .check_qc_dt(qc_dt, qc_names)
-
-    return(qc_dt)
+  return(qc_dt)
 }
 
-#' Checks that input is ok, puts it into expected format
+#' Initializes qc_dt object
 #'
-#' @param x SingleCellExperiment or data.frame (or data.table, some other class
-#' inheriting data.frame) containing calculated QC metrics
-#' @param qc_names list of qc_names that need to be extracted
-#' @importFrom assertthat assert_that
-#' @importFrom magrittr "%>%"
-#' @importFrom SingleCellExperiment counts
-#' @importFrom SummarizedExperiment colData rowData
-#' @importFrom Matrix colSums
-#' @importFrom stringr str_detect
-#' @importFrom data.table data.table
-#' @importFrom data.table ":=" as.data.table setcolorder
-#' @return qc_dt, a data.table containing the sample variable plus qc metrics
-#' @export
-make_qc_dt.SingleCellExperiment <- function(x, qc_names=c('log_counts', 
-    'log_feats', 'logit_mito')) {
-    # some checks before starting
-    assert_that( is(x, "SingleCellExperiment") )
-    assert_that( !is.null(colnames(x)) )
-    assert_that( !is.null(x$sample_id) )
-    assert_that( length(unique(colnames(x))) == ncol(x) )
-
-    # remove proteins if necessary
-    type_col        = rowData(x)$Type
-    if (!is.null(type_col)) {
-        warning("column 'Type' found in `rowData`; assuming that this is a 
-            multi-modal dataset and restricting to rows labelled as 'Gene 
-            Expression'")
-        warning("to avoid this message, or if this is not what you want to do,
-            please make a copy of your sce with only the rows you are 
-            interested in, and no 'Type' column in `rowData`")
-        x         = x[ type_col == 'Gene Expression', ]
-    }
-
-    # warning
-    if (!('log_counts' %in% qc_names))
-        warning("'log_counts' is not specified as in qc_names - are you sure 
-            you want to do QC without log_counts?")
-
-    # restrict to cells >= 1 count
-    total_counts    = Matrix::colSums(counts(x))
-    if (any(total_counts == 0))
-        stop("at least some cells have 0 reads; please remove these before 
-            running `make_qc_dt`")
-
-    # define output dt
-    qc_dt = data.table(
-        cell_id     = colnames(x),
-        sample_id   = x$sample_id
-        )
-
-    # add specified QC metrics one by one
-    if ('log_counts' %in% qc_names)
-        qc_dt[, log_counts  := log10(total_counts) ]
-    if ('log_feats' %in% qc_names) {
-        total_feats     = (counts(x) > 0) %>% Matrix::colSums(.)
-        qc_dt[, log_feats   := log10(total_feats) ]
-    }
-    if ('logit_mito' %in% qc_names) {
-        # prepare to calc stats
-        idx_mt          = grepl("^mt-", rownames(x), ignore.case = TRUE)
-        if (sum(idx_mt) < 13)
-            warning('found ', sum(idx_mt), ' mitochondrial genes, which is less
-             than the expected 13 human genes; you may want to check your 
-             data')
-
-        # calculate stats by hand
-        non_mt_counts   = x[ !idx_mt, ] %>% counts %>% Matrix::colSums(.)
-        mt_counts       = x[ idx_mt, ] %>% counts %>% Matrix::colSums(.)
-
-        # add all of them
-        qc_dt[, log_mito    := log10(mt_counts + 1) ]
-        qc_dt[, log_non_mt  := log10(non_mt_counts + 1) ]
-        qc_dt[, logit_mito  := qlogis( (mt_counts+1) / (total_counts+2) ) ]
-    }
-
-    # add some useful annotations
-    qc_dt       = .add_annotations(qc_dt)
-
-    # add any annotations from coldata
-    other_vars  = setdiff(names(colData(x)), colnames(qc_dt))
-    qc_dt       = cbind(qc_dt, as.data.table(colData(x)[other_vars]))
-
-    # check values
-    .check_qc_dt(qc_dt, qc_names)
-
-    return(qc_dt)
-}
-
-#' Checks that input is ok, puts it into expected format
-#'
-#' @param qc_dt data.table
+#' @param qc_df input data
+#' @param sample_var which column of df has sample labels? (e.g. sample, group, 
+#' batch, library)
 #' @importFrom assertthat assert_that
 #' @keywords internal
-.check_qc_dt <- function(qc_dt, qc_names) {
-    # unpack
-    col_names   = colnames(qc_dt)
+.init_qc_dt <- function(qc_df, sample_var) {
+  # add cell identifiers
+  if ('cell_id' %in% colnames(qc_df)) {
+    qc_dt   = data.table(cell_id = qc_df$cell_id)
+  } else if ( !is.null(rownames(qc_df)) ) {
+    qc_dt   = data.table(cell_id = rownames(qc_df))
+  } else {
+    stop("input data.frame must have either rownames or 'cell_id' as a column")
+  }
+  assert_that( length(unique(qc_dt$cell_id)) == nrow(qc_dt),
+    msg = "cell identifiers are not unique")
 
-    # check specific names
-    if ('log_counts' %in% col_names)
-        assert_that( all(qc_dt$log_counts >= 0) )
-    if ('log_feats' %in% col_names)
-        assert_that( all(qc_dt$log_feats >= 0) )
-    if ('logit_mito' %in% col_names)
-        assert_that( all(is.finite(qc_dt$logit_mito)) )
+  # add sample identifiers
+  qc_dt[, sample_id := qc_df[[sample_var]] ]
 
-    # check qc metrics and annotations for NAs
-    for (n in qc_names) {
-        assert_that( all(!is.na(qc_dt[[n]])) )
-    }
-    annots_auto     = c("med_counts", "counts_cat", "med_mito", 
-        "mito_cat", "log_N", "N_cat")
-    for (n in annots_auto) {
-        if ( n %in% names(qc_dt) )
-            assert_that( all(!is.na(qc_dt[[n]])),
-                msg=paste0('NA present in an annotation variable, ', n) )
-    }
+  # check no missing values or NAs
+  assert_that( all(!is.na(qc_dt$cell_id)), msg = "missing values in cell_id")
+  assert_that( all(!is.na(qc_dt$sample_id)), msg = "missing values in sample_id")
+
+  return(qc_dt)
 }
 
-#' Checks that input is ok, puts it into expected format
+#' Add log counts to qc_dt
 #'
-#' @param sce SingleCellExperiment or data.frame (or data.table, some other 
-#' class inheriting data.frame) containing calculated QC metrics
+#' @param qc_dt data.table of QC metrics
+#' @param qc_df input data
+#' @importFrom data.table ":="
+#' @importFrom assertthat assert_that
+#' @keywords internal
+.add_log_counts <- function(qc_dt, qc_df) {
+  # what names do we have, and want?
+  df_names  = colnames(qc_df)
+  valid_ns  = c('log_counts', 'total', 'sum', 'nCount_RNA')
+
+  # check which are present
+  here_ns   = vapply(valid_ns, function(v) v %in% df_names, logical(1))
+  assert_that( sum(here_ns) >= 1,
+    msg = paste0(
+      "no valid column present for log_counts\n", 
+      paste0("valid columns are: ", paste(valid_ns, collapse = ", "))
+      ))
+  to_use    = valid_ns[here_ns][[1]]
+
+  # add values
+  if (to_use %in% 'log_counts') {
+    qc_dt[, log_counts := qc_df[[ to_use ]] ]
+
+  } else if (to_use %in% c('total', 'sum', 'nCount_RNA')) {
+    assert_that( all(qc_df[[ to_use ]] > 0) )
+    qc_dt[, log_counts := log10(qc_df[[ to_use ]]) ]
+
+  } else {
+    stop("log_counts requested but required variables not present")
+
+  }
+
+  # do some checks
+  assert_that( "log_counts" %in% names(qc_dt) ) 
+  assert_that( !any(is.na(qc_dt$log_counts)), 
+    msg = "some log_counts values are NA")
+  assert_that( !any(is.infinite(qc_dt$log_counts)), 
+    msg = "some log_counts values are infinite")
+  assert_that( all(qc_dt$log_counts >= 0), 
+    msg = "some log_counts values are <= 0")
+
+  return(qc_dt)
+}
+
+#' Add log feats to qc_dt
+#'
+#' @param qc_dt data.table of QC metrics
+#' @param qc_df input data
+#' @importFrom data.table ":="
+#' @importFrom assertthat assert_that
+#' @keywords internal
+.add_log_feats <- function(qc_dt, qc_df) {
+  # what names do we have, and want?
+  df_names  = colnames(qc_df)
+  valid_ns  = c('log_feats', 'detected', 'nFeature_RNA')
+
+  # check which are present
+  here_ns   = vapply(valid_ns, function(v) v %in% df_names, logical(1))
+  assert_that( sum(here_ns) >= 1,
+    msg = paste0(
+      "no valid column present for log_feats\n", 
+      paste0("valid columns are: ", paste(valid_ns, collapse = ", "))
+      ))
+  to_use    = valid_ns[here_ns][[1]]
+
+  # add values
+  if (to_use %in% 'log_feats') {
+    qc_dt[, log_feats := qc_df[[ to_use ]] ]
+
+  } else if (to_use %in% c('detected', 'nFeature_RNA')) {
+    assert_that( all(qc_df[[ to_use ]] > 0) )
+    qc_dt[, log_feats := log10(qc_df[[ to_use ]]) ]
+
+  } else {
+    stop("log_feats requested but required variables not present")
+
+  }
+
+  # do some checks
+  assert_that( "log_feats" %in% names(qc_dt) ) 
+  assert_that( !any(is.na(qc_dt$log_feats)), 
+    msg = "some log_feats values are NA")
+  assert_that( !any(is.infinite(qc_dt$log_feats)), 
+    msg = "some log_feats values are infinite")
+  assert_that( all(qc_dt$log_feats >= 0), 
+    msg = "some log_feats values are <= 0")
+
+  return(qc_dt)
+}
+
+#' Add logit-transformed mitochondrial proportions to qc_dt
+#'
+#' @param qc_dt data.table of QC metrics
+#' @param qc_df input data
+#' @importFrom data.table ":="
+#' @importFrom assertthat assert_that
+#' @keywords internal
+.add_logit_mito <- function(qc_dt, qc_df) {
+  # what names do we have, and want?
+  df_names  = colnames(qc_df)
+
+  # add logit-transformed mitochondrial proportion to qc_dt
+  if ('logit_mito' %in% df_names) {
+    qc_dt[, logit_mito  := qc_df$logit_mito ]
+
+  } else if ( ('subsets_mito_sum' %in% df_names) & ('total' %in% df_names) ) {
+    qc_dt[, logit_mito  := qlogis( (qc_df$subsets_mito_sum + 1) / (qc_df$total + 2) ) ]
+
+  } else if ( ('subsets_mt_sum' %in% df_names) & ('total' %in% df_names) ) {
+    qc_dt[, logit_mito  := qlogis( (qc_df$subsets_mt_sum + 1) / (qc_df$total + 2) ) ]
+
+  } else if ( ('percent.mt' %in% df_names) & ('nCount_RNA' %in% df_names) ) {
+    total_counts  = qc_df$nCount_RNA
+    mt_counts     = qc_df$nCount_RNA * qc_df$percent.mt / 100
+    assert_that( all(abs(mt_counts - round(mt_counts, 0)) < 1e-10) )
+    qc_dt[, logit_mito  := qlogis( (mt_counts + 1) / (total_counts + 2) ) ]
+
+  } else if ( ('mito_prop' %in% df_names) & ('log_counts' %in% df_names) ) {
+    total_counts  = 10^qc_df$log_counts
+    mt_counts     = qc_df$mito_prop * total_counts
+    assert_that( all(abs(mt_counts - round(mt_counts, 0)) < 1e-8) )
+    qc_dt[, logit_mito  := qlogis( (mt_counts + 1) / (total_counts + 2) ) ]
+
+  } else {
+    stop("logit_mito requested but required variables not present")
+  }
+
+  # do some checks
+  assert_that( "logit_mito" %in% names(qc_dt) ) 
+  assert_that( !any(is.na(qc_dt$logit_mito)), 
+    msg = "some logit_mito values are NA")
+  assert_that( !any(is.infinite(qc_dt$logit_mito)), 
+    msg = "some logit_mito values are infinite")
+
+  return(qc_dt)
+}
+
+#' Add log splice ratio to qc_dt
+#'
+#' @param qc_dt data.table of QC metrics
+#' @param qc_df input data
+#' @importFrom data.table ":="
+#' @importFrom assertthat assert_that
+#' @keywords internal
+.add_log_splice <- function(qc_dt, qc_df) {
+  # what names do we have, and want?
+  df_names  = colnames(qc_df)
+
+  # add logit-transformed mitochondrial proportion to qc_dt
+  if ('log_splice' %in% df_names) {
+    qc_dt[, log_splice  := qc_df$log_splice ]
+
+  } else if ( ('total_spliced' %in% df_names) & ('total_unspliced' %in% df_names) ) {
+    qc_dt[, log_splice  := qlogis( (qc_df$total_spliced + 1) / (qc_df$total_unspliced + 1) ) ]
+
+  } else {
+    stop("logit_mito requested but required variables not present")
+
+  }
+
+  # do some checks
+  assert_that( "log_splice" %in% names(qc_dt) ) 
+  assert_that( !any(is.na(qc_dt$logit_mito)), 
+    msg = "some logit_mito values are NA")
+  assert_that( !any(is.infinite(qc_dt$logit_mito)), 
+    msg = "some logit_mito values are infinite")
+
+  return(qc_dt)
+}
+
+#' Shows the list of QC metrics that for which \pkg{SampleQC} currently has 
+#' specific functionality. \pkg{SampleQC} will happily use metrics that aren't
+#' in this list, however for those in this list it can plot a couple of extra 
+#' things.
+#' 
+#' @return character vector of QC metrics that SampleQC knows about
+#' @export
+list_known_metrics <- function() {
+  return(c('log_counts', 'log_feats', 'logit_mito', 'log_splice'))
+}
+
+#' Adds metrics that SampleQC doesn't have specific functions for
+#'
+#' @param qc_dt data.table of QC metrics
+#' @param qc_df data.frame object containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
+#' @importFrom assertthat assert_that
+#' @keywords internal
+.add_unknown_metrics <- function(qc_dt, qc_df, qc_names)  {
+  # anything to add?
+  to_add  = setdiff(qc_names, list_known_metrics())
+  if ( length(to_add) == 0 )
+    return(qc_dt)
+
+  # add them
+  message("adding the following metrics that are not known to `SampleQC`:")
+  message(paste(to_add, collapse = ", "))
+  for (v in to_add) {
+    assert_that( v %in% names(qc_df), msg = paste0(v, " missing from qc_df"))
+    qc_dt$v = qc_df$v
+    assert_that( !any(is.na(qc_dt$v)), msg = paste0("NA values for ", v))
+    assert_that( !any(is.infinite(qc_dt$v)), msg = paste0("infinite values for ", v))
+  }
+
+  return(qc_dt)
+}
+
+#' Adds sample-level annotations for each known QC metric
+#'
+#' @param qc_dt data.table
 #' @importFrom data.table ":="
 #' @return qc_dt, a data.table containing the sample variable plus qc metrics
 #' @keywords internal
-.add_annotations <- function(qc_dt) {
-    # add annotations relating to mitochondrial proportions
-    if ('log_counts' %in% names(qc_dt) ) {
-        # add median log counts per sample
-        qc_dt[, med_counts  := median(log_counts), by='sample_id']
+.add_qc_annots <- function(qc_dt) {
+  # add annotations for sample size
+  qc_dt[, log_N  := log10(.N), by='sample_id']
 
-        # put mito level into categories
-        counts_cuts = c(1,100,300,1000,3000,10000,30000, Inf)
-        counts_labs = paste0('<=', counts_cuts[-1])
-        qc_dt[, counts_cat  := factor(
-            cut(10^med_counts, breaks=counts_cuts, labels=counts_labs), 
-            levels=counts_labs), by='sample_id']
-    }
+  # and factor version
+  N_cuts    = c(1,100,200,400,1000,2000,4000,10000,20000,40000,Inf)
+  N_labs    = paste0('<=', N_cuts[-1])
+  qc_dt[, N_cat  := factor(
+    cut(10^log_N, breaks = N_cuts, labels = N_labs), 
+    levels = N_labs), by = 'sample_id']
 
-    # add annotations relating to mitochondrial proportions
-    if ('logit_mito' %in% names(qc_dt) ) {
-        # add median mito proportion
-        qc_dt[, med_mito    := median(plogis(logit_mito)), by='sample_id']
+  # add annotations relating to library sizes
+  if ('log_counts' %in% names(qc_dt) ) {
+    # add median log counts per sample
+    qc_dt[, med_counts  := median(log_counts), by='sample_id']
 
-        # put mito level into categories
-        mito_cuts   = c(0,0.01,0.05,0.1,0.2,0.5,1)
-        mito_labs   = paste0('<=', mito_cuts[-1])
-        qc_dt[, mito_cat    := factor(
-            cut(med_mito, breaks=mito_cuts, labels=mito_labs), 
-            levels=mito_labs), by='sample_id']
-    }
+    # put mito level into categories
+    counts_cuts = c(1,100,300,1000,3000,10000,30000, Inf)
+    counts_labs = paste0('<=', counts_cuts[-1])
+    qc_dt[, counts_cat  := factor(
+      cut(10^med_counts, breaks = counts_cuts, labels = counts_labs), 
+      levels = counts_labs), by = 'sample_id']
+  }
 
-    # add annotations for sample size
-    qc_dt[, log_N    := log10(.N), by='sample_id']
+  # add annotations relating to features
+  if ('log_feats' %in% names(qc_dt) ) {
+    # add median log feats per sample
+    qc_dt[, med_feats   := median(log_feats), by='sample_id']
 
-    # and factor version
-    N_cuts      = c(1,100,200,400,1000,2000,4000,10000,20000,40000,Inf)
-    N_labs      = paste0('<=', N_cuts[-1])
-    qc_dt[, N_cat    := factor(
-        cut(10^log_N, breaks=N_cuts, labels=N_labs), 
-        levels=N_labs), by=sample_id]
+    # put mito level into categories
+    feats_cuts = c(1,100,300,1000,3000,10000,30000, Inf)
+    feats_labs = paste0('<=', feats_cuts[-1])
+    qc_dt[, feats_cat  := factor(
+      cut(10^med_feats, breaks = feats_cuts, labels = feats_labs), 
+      levels = feats_labs), by = 'sample_id']
+  }
 
-    return(qc_dt)
+  # add annotations relating to mitochondrial proportions
+  if ('logit_mito' %in% names(qc_dt) ) {
+    # add median mito proportion
+    qc_dt[, med_mito  := median(plogis(logit_mito)), by='sample_id']
+
+    # put mito level into categories
+    mito_cuts   = c(0,0.01,0.05,0.1,0.2,0.5,1)
+    mito_labs   = paste0('<=', mito_cuts[-1])
+    qc_dt[, mito_cat  := factor(
+      cut(med_mito, breaks = mito_cuts, labels = mito_labs), 
+      levels = mito_labs), by = 'sample_id']
+  }
+
+  # add annotations relating to mitochondrial proportions
+  if ('log_splice' %in% names(qc_dt) ) {
+    # add median mito proportion
+    qc_dt[, med_splice  := median(plogis(log_splice)), by='sample_id']
+
+    # put mito level into categories
+    splice_cuts = c(0, 0.01, 0.05, 0.1, 0.2, 0.5, 1)
+    splice_labs = paste0('<=', splice_cuts[-1])
+    qc_dt[, splice_cat  := factor(
+      cut(med_splice, breaks = splice_cuts, labels = splice_labs), 
+      levels = splice_labs), by = 'sample_id']
+  }
+
+  return(qc_dt)
+}
+
+#' Adds user-specified annotation variables
+#'
+#' @param qc_dt data.table
+#' @param qc_df data.frame object containing calculated QC metrics
+#' @importFrom magrittr "%>%"
+#' @importFrom data.table ":=" ".N"
+#' @return qc_dt, a data.table containing the sample variable plus qc metrics
+#' @keywords internal
+.add_annot_vars <- function(qc_dt, qc_df, annot_vars) {
+  # check all present
+  assert_that( all(annot_vars %in% names(qc_df)) )
+  # add them
+  for (v in annot_vars) 
+    qc_dt[[v]] = qc_df[[v]]
+
+  # check that they all sample level
+  for (v in annot_vars) {
+    check_dt  = qc_dt[, c('sample_id', v), with = FALSE] %>%
+      .[, .N, by = c('sample_id', v) ]
+    assert_that( nrow(check_dt) == length(unique(check_dt$sample_id)),
+      msg = paste0("annotation variable ", v, " has more than one value per\n", 
+        "sample (should be sample-level only)"))
+  }
+
+  return(qc_dt)
+}
+
+
+#' Checks that output is ok
+#'
+#' @param qc_dt data.table
+#' @param qc_names list of qc_names that need to be extracted
+#' @param annot_vars list of annotation variables
+#' @importFrom assertthat assert_that
+#' @keywords internal
+.check_qc_dt <- function(qc_dt, qc_names, annot_vars) {
+  # unpack
+  col_names   = colnames(qc_dt)
+
+  # check specific names
+  if ('log_counts' %in% col_names)
+    assert_that( all(qc_dt$log_counts >= 0) )
+  if ('log_feats' %in% col_names)
+    assert_that( all(qc_dt$log_feats >= 0) )
+  if ('logit_mito' %in% col_names)
+    assert_that( all(is.finite(qc_dt$logit_mito)) )
+  if ('log_splice' %in% col_names)
+    assert_that( all(is.finite(qc_dt$log_splice)) )
+
+  # check qc metrics and annotations for NAs
+  for (n in qc_names) {
+    assert_that( all(!is.na(qc_dt[[n]])) )
+  }
+  annots_auto   = c(
+    "med_counts", "counts_cat", 
+    "med_feats", "feats_cat", 
+    "med_mito", "mito_cat", 
+    "med_splice", "splice_cat", 
+    "log_N", "N_cat")
+  for (n in c(annots_auto, annot_vars)) {
+    if ( n %in% names(qc_dt) )
+      assert_that( all(!is.na(qc_dt[[n]])),
+        msg = paste0('NA present in an annotation variable, ', n) )
+  }
 }

@@ -2,14 +2,18 @@
 % Please edit documentation in R/make_qc_dt.R
 \name{.check_qc_dt}
 \alias{.check_qc_dt}
-\title{Checks that input is ok, puts it into expected format}
+\title{Checks that output is ok}
 \usage{
-.check_qc_dt(qc_dt, qc_names)
+.check_qc_dt(qc_dt, qc_names, annot_vars)
 }
 \arguments{
 \item{qc_dt}{data.table}
+
+\item{qc_names}{list of qc_names that need to be extracted}
+
+\item{annot_vars}{list of annotation variables}
 }
 \description{
-Checks that input is ok, puts it into expected format
+Checks that output is ok
 }
 \keyword{internal}

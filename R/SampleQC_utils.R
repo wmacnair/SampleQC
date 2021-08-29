@@ -145,7 +145,7 @@ get_n_groups <- function(qc_obj) {
     # generate sample means
     J               = 20
     N_per_sample    = as.integer(exp(rnorm(J, log(200), 1)))
-    mu_log_counts   = rnorm(J, log(4000), 0.1)
+    mu_log_counts   = rnorm(J, log10(4000), 0.1)
     mu_log_feats    = mu_log_counts - 0.5 + rnorm(J, 0, 0.1)
     mu_logit_mito   = rnorm(J, -3, 1)
 
@@ -163,12 +163,22 @@ get_n_groups <- function(qc_obj) {
             annot_1     = sprintf('annot%02d', j),
             log_counts  = rnorm(N, mu_counts, 1)
             )
-        df$log_feats    = (df$log_counts - mu_counts) + mu_feats + rnorm(N, 0, 0.01)
-        df$mito_prop    = plogis(rnorm(N, mu_mito, 0.1))
+        tmp_vals      = df$log_counts
+        df$log_counts = log10(round(10^tmp_vals, 0))
+        tmp_vals      = (df$log_counts - mu_counts) + mu_feats + rnorm(N, 0, 0.01)
+        df$log_feats  = log10(round(10^tmp_vals, 0))
+        tmp_vals      = plogis(rnorm(N, mu_mito, 0.1))
+        df$mito_prop  = round(10^df$log_counts * tmp_vals, 0) / 10^df$log_counts
 
         return(df)
     })
     qc_df   = do.call(rbind, df_list)
+
+    # remove any zeros
+    qc_df   = qc_df[ !is.infinite(qc_df$log_counts), ]
+    qc_df   = qc_df[ !is.infinite(qc_df$log_feats), ]
+    qc_df   = qc_df[ qc_df$log_counts != 0, ]
+    qc_df   = qc_df[ qc_df$log_feats != 0, ]
 
     # add cell_id
     qc_df$cell_id = sprintf('cell%04d', seq_len(nrow(qc_df)))

@@ -2,24 +2,39 @@
 % Please edit documentation in R/make_qc_dt.R
 \name{make_qc_dt}
 \alias{make_qc_dt}
-\title{Makes data.table of specified QC metrics}
+\title{Checks specified QC metrics and makes data.table for input to
+\code{calc_pairwise_mmds}.}
 \usage{
-make_qc_dt(x, qc_names = c("log_counts", "log_feats", "logit_mito"))
+make_qc_dt(
+  qc_df,
+  sample_var = "sample_id",
+  qc_names = c("log_counts", "log_feats", "logit_mito"),
+  annot_vars = NULL
+)
 }
 \arguments{
-\item{x}{either SCE, or data.frame object containing calculated QC metrics}
+\item{qc_df}{data.frame object containing calculated QC metrics}
+
+\item{sample_var}{which column of qc_df has sample labels? (e.g. sample, group,
+batch, library)}
 
 \item{qc_names}{list of qc_names that need to be extracted}
+
+\item{annot_vars}{list of user-specified sample-level annotations}
 }
 \value{
 qc_dt, a data.table containing the sample variable plus qc metrics
 }
 \description{
-Extracts a \code{data.table} of QC metrics, either by calculating them from
-a SingleCellExperiment object, or copying them from a \code{data.frame} that
-the user has already made. Also does a little bit of checking of the inputs.
+Takes a \code{data.frame} of raw QC metrics, and makes a nice neat
+\code{data.table} output that can be used in \pkg{SampleQC}. For example,
+users with a \pkg{SingleCellExperiment} object \code{sce} may first run
+\code{scater::calculateQCMetrics}, then call \code{make_qc_dt(colData(sce))}.
+We work with \code{data.frame}/\code{data.table} objects to have the most
+flexible possible approach (and to save work on e.g. keeping up with changes
+to dependencies like \pkg{SingleCellExperiment} and \pkg{Seurat}).
 }
 \details{
-WARNING: This bit of code definitely needs more testing / thought /
-improvements... Please let me know if it falls over!
+This code also calculates some sample-level statistics, e.g. median log
+library size per sample, and adds columns with binned values for these.
 }
