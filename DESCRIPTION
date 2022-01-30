@@ -1,6 +1,6 @@
 Package: SampleQC
 Title: Robust, multivariate, multi-sample, multi-celltype QC for single cell RNA-seq data
-Version: 0.6.3
+Version: 0.6.4
 Authors@R: 
     person(given = "Will",
            family = "Macnair",
@@ -48,7 +48,7 @@ Imports:
     SummarizedExperiment,
     uwot
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 Suggests: 
     testthat (>= 2.1.0),
     knitr

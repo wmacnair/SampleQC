@@ -58,8 +58,8 @@ make_qc_dt <- function(qc_df, sample_var = 'sample_id',
   if ('logit_mito' %in% qc_names) {
     qc_dt   = .add_logit_mito(qc_dt, qc_df)
   }
-  if ('log_splice' %in% qc_names) {
-    qc_dt   = .add_log_splice(qc_dt, qc_df)
+  if ('splice_ratio' %in% qc_names) {
+    qc_dt   = .add_splice_ratio(qc_dt, qc_df)
   }
 
   # add unknown metrics
@@ -255,16 +255,16 @@ make_qc_dt <- function(qc_df, sample_var = 'sample_id',
 #' @importFrom data.table ":="
 #' @importFrom assertthat assert_that
 #' @keywords internal
-.add_log_splice <- function(qc_dt, qc_df) {
+.add_splice_ratio <- function(qc_dt, qc_df) {
   # what names do we have, and want?
   df_names  = colnames(qc_df)
 
   # add logit-transformed mitochondrial proportion to qc_dt
-  if ('log_splice' %in% df_names) {
-    qc_dt[, log_splice  := qc_df$log_splice ]
+  if ('splice_ratio' %in% df_names) {
+    qc_dt[, splice_ratio  := qc_df$splice_ratio ]
 
   } else if ( ('total_spliced' %in% df_names) & ('total_unspliced' %in% df_names) ) {
-    qc_dt[, log_splice  := qlogis( (qc_df$total_spliced + 1) / (qc_df$total_unspliced + 1) ) ]
+    qc_dt[, splice_ratio  := qlogis( (qc_df$total_spliced + 1) / (qc_df$total_unspliced + 1) ) ]
 
   } else {
     stop("logit_mito requested but required variables not present")
@@ -272,7 +272,7 @@ make_qc_dt <- function(qc_df, sample_var = 'sample_id',
   }
 
   # do some checks
-  assert_that( "log_splice" %in% names(qc_dt) ) 
+  assert_that( "splice_ratio" %in% names(qc_dt) ) 
   assert_that( !any(is.na(qc_dt$logit_mito)), 
     msg = "some logit_mito values are NA")
   assert_that( !any(is.infinite(qc_dt$logit_mito)), 
@@ -289,7 +289,7 @@ make_qc_dt <- function(qc_df, sample_var = 'sample_id',
 #' @return character vector of QC metrics that SampleQC knows about
 #' @export
 list_known_metrics <- function() {
-  return(c('log_counts', 'log_feats', 'logit_mito', 'log_splice'))
+  return(c('log_counts', 'log_feats', 'logit_mito', 'splice_ratio'))
 }
 
 #' Adds metrics that SampleQC doesn't have specific functions for
@@ -298,6 +298,7 @@ list_known_metrics <- function() {
 #' @param qc_df data.frame object containing calculated QC metrics
 #' @param qc_names list of qc_names that need to be extracted
 #' @importFrom assertthat assert_that
+#' @importFrom data.table set
 #' @keywords internal
 .add_unknown_metrics <- function(qc_dt, qc_df, qc_names)  {
   # anything to add?
@@ -310,7 +311,7 @@ list_known_metrics <- function() {
   message(paste(to_add, collapse = ", "))
   for (v in to_add) {
     assert_that( v %in% names(qc_df), msg = paste0(v, " missing from qc_df"))
-    qc_dt$v = qc_df$v
+    set(qc_dt, i = NULL, v, qc_df[[v]])
     assert_that( !any(is.na(qc_dt$v)), msg = paste0("NA values for ", v))
     assert_that( !any(is.infinite(qc_dt$v)), msg = paste0("infinite values for ", v))
   }
@@ -375,9 +376,9 @@ list_known_metrics <- function() {
   }
 
   # add annotations relating to mitochondrial proportions
-  if ('log_splice' %in% names(qc_dt) ) {
+  if ('splice_ratio' %in% names(qc_dt) ) {
     # add median mito proportion
-    qc_dt[, med_splice  := median(plogis(log_splice)), by='sample_id']
+    qc_dt[, med_splice  := median(plogis(splice_ratio)), by='sample_id']
 
     # put mito level into categories
     splice_cuts = c(0, 0.01, 0.05, 0.1, 0.2, 0.5, 1)
@@ -436,8 +437,8 @@ list_known_metrics <- function() {
     assert_that( all(qc_dt$log_feats >= 0) )
   if ('logit_mito' %in% col_names)
     assert_that( all(is.finite(qc_dt$logit_mito)) )
-  if ('log_splice' %in% col_names)
-    assert_that( all(is.finite(qc_dt$log_splice)) )
+  if ('splice_ratio' %in% col_names)
+    assert_that( all(is.finite(qc_dt$splice_ratio)) )
 
   # check qc metrics and annotations for NAs
   for (n in qc_names) {

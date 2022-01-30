@@ -1,5 +1,5 @@
 context("Preparing data.table of QC metrics")
-# pkg_dir   = '/home/will/work/packages/SampleQC'
+# pkg_dir   = '/Users/will/work/packages/SampleQC'
 # devtools::document(pkg_dir); devtools::test(pkg_dir)
 # devtools::document(pkg_dir); testthat::test_file(file.path(pkg_dir, 'tests/testthat/test-01_make_qc_dt.R'))
 
@@ -69,7 +69,7 @@ test_that("check inputs (data.frame)", {
     annot_vars = 'bad_var'))
 
   # error when variables requested that are not present
-  expect_error(make_qc_dt(qc_df, sample_var = 'sample_id', qc_names = 'log_splice'))
+  expect_error(make_qc_dt(qc_df, sample_var = 'sample_id', qc_names = 'splice_ratio'))
 
   # error when some variables are missing
   tmp_df    = copy(qc_df)
@@ -100,7 +100,7 @@ test_that("check inputs (sce)", {
 
   # error when variables requested that are not present
   expect_error(make_qc_dt(colData(sce), sample_var = 'sample_id', 
-    qc_names = 'log_splice'))
+    qc_names = 'splice_ratio'))
 
   # error when some variables are missing
   tmp_df    = copy(colData(sce))
@@ -133,7 +133,7 @@ test_that("check inputs (Seurat)", {
     annot_vars = 'bad_var'))
 
   # error when variables requested that are not present
-  expect_error(make_qc_dt(seu@meta.data, sample_var = 'sample_id', qc_names = 'log_splice'))
+  expect_error(make_qc_dt(seu@meta.data, sample_var = 'sample_id', qc_names = 'splice_ratio'))
 
   # error when some variables are missing
   tmp_df            = copy(seu@meta.data)

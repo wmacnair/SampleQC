@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // fit_sampleqc_mle_cpp
 List fit_sampleqc_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups, int D, int J, int K, int N, int n_iter, uint seed);
 RcppExport SEXP _SampleQC_fit_sampleqc_mle_cpp(SEXP xSEXP, SEXP init_gamma_iSEXP, SEXP groupsSEXP, SEXP DSEXP, SEXP JSEXP, SEXP KSEXP, SEXP NSEXP, SEXP n_iterSEXP, SEXP seedSEXP) {
