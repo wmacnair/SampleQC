@@ -4,7 +4,16 @@
 \alias{.draw_expt_params}
 \title{Draws experiment-level parameters}
 \usage{
-.draw_expt_params(n_groups, n_cells, cells_p_s, D, K, qc_names, sel_ks = NULL)
+.draw_expt_params(
+  n_groups,
+  n_cells,
+  cells_p_s,
+  D,
+  K,
+  qc_names,
+  sel_ks = NULL,
+  df
+)
 }
 \arguments{
 \item{n_groups}{Number of sample groups, each of which is composed of
@@ -20,6 +29,9 @@ sample group)}
 \item{K}{Number of components}
 
 \item{qc_names}{Names for qc metrics}
+
+\item{df}{Degrees of freedom to use for multivariate t-distributed data.
+Default is NULL, which gives multivariate distributions.}
 }
 \value{
 list of parameters

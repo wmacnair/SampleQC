@@ -11,6 +11,7 @@ simulate_qcs(
   D = 3,
   K = 4,
   qc_names = c("log_counts", "log_feats", "logit_mito"),
+  df = NULL,
   sel_ks = NULL
 )
 }
@@ -27,6 +28,9 @@ sample has 2000 cells on average)}
 \item{K}{How many mixture components should there be in total? (see Details)}
 
 \item{qc_names}{Names for QC metrics}
+
+\item{df}{Degrees of freedom to use for multivariate t-distributed data.
+Default is NULL, which gives multivariate distributions.}
 }
 \value{
 list with multiple entries:

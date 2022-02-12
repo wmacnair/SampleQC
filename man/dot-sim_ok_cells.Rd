@@ -4,7 +4,20 @@
 \alias{.sim_ok_cells}
 \title{Simulates healthy cells}
 \usage{
-.sim_ok_cells(z, samples, mu_0, alpha_j, beta_k, Sigma_k, delta_jk, N, D, K, J)
+.sim_ok_cells(
+  z,
+  samples,
+  mu_0,
+  alpha_j,
+  beta_k,
+  Sigma_k,
+  delta_jk,
+  N,
+  D,
+  K,
+  J,
+  df
+)
 }
 \arguments{
 \item{z}{latent true cell components}

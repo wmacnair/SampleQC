@@ -14,7 +14,8 @@
   Sigma_k,
   p_out_0,
   theta_0,
-  p_loss_0
+  p_loss_0,
+  df
 )
 }
 \arguments{

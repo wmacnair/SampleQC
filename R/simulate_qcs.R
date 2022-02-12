@@ -26,6 +26,8 @@
 #' @param D How many QC metrics do you want
 #' @param K How many mixture components should there be in total? (see Details)
 #' @param qc_names Names for QC metrics
+#' @param df Degrees of freedom to use for multivariate t-distributed data. 
+#' Default is NULL, which gives multivariate distributions.
 #' 
 #' @return list with multiple entries:
 #' - qc_ok: \code{data.table} of cell QC metrics \emph{before} outlier 
@@ -43,10 +45,11 @@
 #' 
 #' @export
 simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4, 
-    qc_names=c('log_counts', 'log_feats', 'logit_mito'), sel_ks = NULL) {
+    qc_names=c('log_counts', 'log_feats', 'logit_mito'), df = NULL, 
+    sel_ks = NULL) {
     # draw experiment-level parameters
     expt_params = .draw_expt_params(n_groups, n_cells, cells_p_s, 
-        D, K, qc_names, sel_ks)
+        D, K, qc_names, sel_ks, df)
 
     # do for each
     group_sims  = lapply(
@@ -73,7 +76,8 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
                 N_ii, D, J_ii, K_ii,
                 mu_0_ii, 
                 beta_k_ii, Sigma_k_ii,
-                p_out_0_ii, theta_0_ii, p_loss_0_ii
+                p_out_0_ii, theta_0_ii, p_loss_0_ii,
+                df
                 )
 
             return(sims_ii)
@@ -95,19 +99,27 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @param D Number of dimensions
 #' @param K Number of components
 #' @param qc_names Names for qc metrics
+#' @param df Degrees of freedom to use for multivariate t-distributed data. 
+#' Default is NULL, which gives multivariate distributions.
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom magrittr "%>%"
 #'
 #' @return list of parameters
 #' @keywords internal
-.draw_expt_params <- function(n_groups, n_cells, cells_p_s, D, K, qc_names, sel_ks = NULL) {
-    # label groups
-    group_names = sprintf('QC%01d', seq_len(n_groups))
-
-    # check qc_names
+.draw_expt_params <- function(n_groups, n_cells, cells_p_s, D, K, qc_names, 
+    sel_ks = NULL, df) {
+    # check inputs
+    assert_that( is.count(n_groups), is.count(n_cells), is.count(cells_p_s),
+        is.count(D), is.count(K),
+        msg='n_groups, n_cells, cells_p_s, D, K must be positive integers')
     assert_that( length(qc_names) == D, 
         msg='length of qc_names must be equal to D')
+    assert_that( is.null(df) || df >= 0, 
+        msg='df must be NULL or non-negative')
+
+    # label groups
+    group_names = sprintf('QC%01d', seq_len(n_groups))
 
     # decide sizes of groups
     dirichlet_a = 10
@@ -466,7 +478,7 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return list with all parameters for this group
 #' @keywords internal
 .sim_sample_group <- function(N, D, J, K, 
-    mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0) {
+    mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0, df) {
 
     # subdivide cells into samples
     samples     = .draw_samples(J, N)
@@ -488,7 +500,7 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
     # simulate all healthy cells
     x_ok        = .sim_ok_cells(z, samples,
         mu_0, alpha_j, beta_k, Sigma_k, delta_jk, 
-        N, D, K, J)
+        N, D, K, J, df)
 
     # adjust values for outliers
     x_out       = .sim_outliers(x_ok, samples, outliers, out_j, J)
@@ -749,14 +761,14 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' 
 #' @importFrom assertthat assert_that
 #' @importFrom data.table data.table
-#' @importFrom mvtnorm rmvnorm
+#' @importFrom mvtnorm rmvnorm rmvt
 #' @importFrom magrittr "%>%"
 #'
 #' @return ?
 #' @keywords internal
 .sim_ok_cells <- function(z, samples, 
     mu_0, alpha_j, beta_k, Sigma_k, delta_jk, 
-    N, D, K, J) {
+    N, D, K, J, df) {
 
     # sample x
     x           = matrix(nrow=N, ncol=D)
@@ -776,12 +788,17 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
         delta_jk_mat    = delta_jk[delta_idx, ]
 
         # prep sigma
-        sigma       = Sigma_k[, ,k ]
+        Sigma           = Sigma_k[, ,k ]
 
         # do draw
-        x[k_idx, ]  = mu_0_mat + 
-            alpha_j_mat + beta_k_mat + delta_jk_mat +
-            rmvnorm(sum(k_idx), mean=rep(0, D), sigma=sigma)
+        mu_mat          = mu_0_mat + alpha_j_mat + beta_k_mat + delta_jk_mat
+        if (is.null(df)) {
+            x[k_idx, ]  = mu_mat +
+                rmvnorm(n_k, mean = rep(0, D), sigma = Sigma)
+        } else {
+            x[k_idx, ]  = mu_mat +
+                rmvt(n_k, delta = rep(0, D), sigma = Sigma, df = df)
+        }
     }
 
     return(x)
