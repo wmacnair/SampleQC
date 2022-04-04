@@ -1,6 +1,6 @@
 Package: SampleQC
 Title: Robust, multivariate, multi-sample, multi-celltype QC for single cell RNA-seq data
-Version: 0.6.5
+Version: 0.6.6
 Authors@R: 
     person(given = "Will",
            family = "Macnair",

@@ -140,7 +140,7 @@ Once you're happy that the model is identifying outliers correctly, you can extr
 outliers_dt = get_outliers(qc_obj)
 ```
 
-(There are a couple of ways of tweaking exactly how you get your outliers, which you can see by calling `?get_outliers`.)
+There are a couple of ways of tweaking exactly how you get your outliers using the `get_outliers` function. If the plots in the section _Checking for outliers and QC batches via MMD_ of the `SampleQC` report indicate that one group of samples is universally of bad quality, then you can choose to exclude all of those samples via the argument `exc_groups`. If there are groups of cells with sufficient numbers to be modelled as a group by `SampleQC`, but you want to exclude them (for example, a large cluster of cells with extremely high mitochondrial proportions), then you can specify clusters to be excluded with the argument `exc_clusters`. You can see more details by calling `?get_outliers`.
 
 # Preprint
 
