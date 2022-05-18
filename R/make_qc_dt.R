@@ -264,7 +264,7 @@ make_qc_dt <- function(qc_df, sample_var = 'sample_id',
     qc_dt[, splice_ratio  := qc_df$splice_ratio ]
 
   } else if ( ('total_spliced' %in% df_names) & ('total_unspliced' %in% df_names) ) {
-    qc_dt[, splice_ratio  := qlogis( (qc_df$total_spliced + 1) / (qc_df$total_unspliced + 1) ) ]
+    qc_dt[, splice_ratio  := log2( (qc_df$total_spliced + 1) / (qc_df$total_unspliced + 1) ) ]
 
   } else {
     stop("logit_mito requested but required variables not present")
