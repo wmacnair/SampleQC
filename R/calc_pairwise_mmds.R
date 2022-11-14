@@ -290,6 +290,8 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
 #' @return igraph object
 #' @keywords internal
 .make_mmd_graph <- function(mmd_mat, n_nhbrs=5) {
+    # check number of neighbours
+    n_nhbrs 	= min(ncol(mmd_mat) - 1, n_nhbrs)
     # turn into nearest neighbours graph
     edge_list   = lapply(seq_len(nrow(mmd_mat)), 
         function(i) {
@@ -351,10 +353,16 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
 #' @return matrix of embedding
 #' @export
 .embed_mds <- function(mmd_mat) {
-    message('  calculating MDS embedding')
-    # embed with multidimensional scaling
     k           = 2
-    mds_mat     = cmdscale(mmd_mat, k)
+    if (ncol(mmd_mat) <= 2) {
+	message("  only 2 samples, MDS embedding is arbitrary")
+	mds_mat 	= diag(ncol(mmd_mat))
+    } else {
+        message("  calculating MDS embedding")
+        # embed with multidimensional scaling
+        mds_mat     = cmdscale(mmd_mat, k)
+    }
+    rownames(mds_mat) = rownames(mmd_mat)
     mds_mat     = apply(mds_mat, 2, rescale, to=c(0.05, 0.95))
     colnames(mds_mat)   = paste0('MDS', 1:k)
 
@@ -374,7 +382,6 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
 #' @return matrix of embedding
 #' @keywords internal
 .embed_umap <- function(mmd_mat, n_nhbrs) {
-    message('  calculating UMAP embedding')
 
     # convert mmd mat to nearest neighbours
     # nn_method   = list(
@@ -386,8 +393,14 @@ calc_pairwise_mmds <- function(qc_dt, qc_names=c('log_counts',
     #         ) %>% t
     #     )
     # umap_mat    = umap(NULL, nn_method=nn_method, min_dist=0.001)
-    umap_mat    = umap(as.dist(mmd_mat), 
-        n_neighbors=n_nhbrs, min_dist=0.001)
+    if (ncol(mmd_mat) <= 2) {
+	message("  only 2 samples, UMAP embedding is arbitrary")
+	umap_mat    = diag(ncol(mmd_mat))
+    } else {
+        message("  calculating UMAP embedding")
+        umap_mat    = umap(as.dist(mmd_mat), 
+            n_neighbors=n_nhbrs, min_dist=0.001)
+    }
 
     # tidy up
     umap_mat    = apply(umap_mat, 2, rescale, to=c(0.05, 0.95))

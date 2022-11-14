@@ -21,7 +21,7 @@ qc_dt     = make_qc_dt(sims_list$qc_out, sample_var = 'sample_id',
   qc_names = qc_names)
 
 # run mmds
-annot_disc  = c('annot_1')
+annots_disc = c('annot_1')
 suppressMessages({
   qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
     subsample=20, n_times=5, n_cores=1)
@@ -30,13 +30,26 @@ suppressMessages({
 # define K_list
 K_list    = rep(1, get_n_groups(qc_obj))
 
+# run for 2-sample edge case
+qc_dt_2   = qc_dt[ sample_id %in% c("sample01", "sample02") ]
+suppressMessages({
+  qc_obj_2  = calc_pairwise_mmds(qc_dt_2, qc_names, 
+    subsample=20, n_times=5, n_cores=1)
+})
+
+
 ################
 # tests
 ################
 
-test_that("cell functions work", {
+test_that("check fitting function works", {
   # does it work ok with defaults?
   expect_is(fit_sampleqc(qc_obj, K_all=1), 'SingleCellExperiment')
+})
+
+test_that("check fitting function work with 2 samples", {
+  # does it work ok with defaults?
+  expect_is(fit_sampleqc(qc_obj_2, K_all=1), 'SingleCellExperiment')
 })
 
 test_that("parameter specifications for one vs multiple sample clusters are correct", {

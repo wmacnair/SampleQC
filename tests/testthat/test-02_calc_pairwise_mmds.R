@@ -22,8 +22,11 @@ qc_names    = c('log_counts', 'log_feats', 'logit_mito')
 qc_dt       = make_qc_dt(qc_df, sample_var = 'sample_id', 
     qc_names, annot_vars = 'annot_1')
 
+# make corner case
+qc_dt_2     = qc_dt[ sample_id %in% c("sample01", "sample02") ]
+
 # specify dummy annotation
-annot_disc  = c('annot_1')
+annots_disc = c('annot_1')
 
 ################
 # tests
@@ -36,7 +39,14 @@ test_that("does sample function work?", {
       'SingleCellExperiment')
 })
 
-test_that("automatic handling of annot_disc, annot_continuous", {
+test_that("does sample function work for just 2 samples?", {
+    # do they work ok?
+    expect_is(calc_pairwise_mmds(qc_dt_2, qc_names, 
+        subsample = 20, n_times = 5, n_cores = 1), 
+      'SingleCellExperiment')
+})
+
+test_that("automatic handling of annots_disc, annot_continuous", {
     # run default
     suppressMessages({
       qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
@@ -52,7 +62,7 @@ test_that("automatic handling of annot_disc, annot_continuous", {
     # run default
     suppressMessages({
       qc_obj    = calc_pairwise_mmds(qc_dt, qc_names, 
-        annots_disc = annot_disc, subsample = 20, n_times = 5, n_cores = 1)
+        annots_disc = annots_disc, subsample = 20, n_times = 5, n_cores = 1)
     })
 
     # get right type of output

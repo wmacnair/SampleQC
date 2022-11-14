@@ -108,7 +108,7 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return list of parameters
 #' @keywords internal
 .draw_expt_params <- function(n_groups, n_cells, cells_p_s, D, K, qc_names, 
-    sel_ks = NULL, df) {
+    sel_ks = NULL, df = NULL) {
     # check inputs
     assert_that( is.count(n_groups), is.count(n_cells), is.count(cells_p_s),
         is.count(D), is.count(K),
@@ -478,7 +478,7 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @return list with all parameters for this group
 #' @keywords internal
 .sim_sample_group <- function(N, D, J, K, 
-    mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0, df) {
+    mu_0, beta_k, Sigma_k, p_out_0, theta_0, p_loss_0, df = NULL) {
 
     # subdivide cells into samples
     samples     = .draw_samples(J, N)
@@ -768,7 +768,7 @@ simulate_qcs <- function(n_groups=4, n_cells=1e5, cells_p_s=2000, D=3, K=4,
 #' @keywords internal
 .sim_ok_cells <- function(z, samples, 
     mu_0, alpha_j, beta_k, Sigma_k, delta_jk, 
-    N, D, K, J, df) {
+    N, D, K, J, df = NULL) {
 
     # sample x
     x           = matrix(nrow=N, ncol=D)
