@@ -1,7 +1,7 @@
 #include <RcppArmadillo.h>
 
 // setting seed
-void set_seed_cpp(uint seed);
+void set_seed_cpp(unsigned int seed);
 
 // debugging stuff
 void print_vector(arma::vec vec, const char* vec_name);
