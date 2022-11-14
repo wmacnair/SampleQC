@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // fit_sampleqc_mle_cpp
-List fit_sampleqc_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups, int D, int J, int K, int N, int n_iter, uint seed);
+List fit_sampleqc_mle_cpp(arma::mat x, arma::mat init_gamma_i, arma::uvec groups, int D, int J, int K, int N, int n_iter, unsigned int seed);
 RcppExport SEXP _SampleQC_fit_sampleqc_mle_cpp(SEXP xSEXP, SEXP init_gamma_iSEXP, SEXP groupsSEXP, SEXP DSEXP, SEXP JSEXP, SEXP KSEXP, SEXP NSEXP, SEXP n_iterSEXP, SEXP seedSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -25,13 +25,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type K(KSEXP);
     Rcpp::traits::input_parameter< int >::type N(NSEXP);
     Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
-    Rcpp::traits::input_parameter< uint >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type seed(seedSEXP);
     rcpp_result_gen = Rcpp::wrap(fit_sampleqc_mle_cpp(x, init_gamma_i, groups, D, J, K, N, n_iter, seed));
     return rcpp_result_gen;
 END_RCPP
 }
 // fit_sampleqc_robust_cpp
-List fit_sampleqc_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, uint seed, bool track);
+List fit_sampleqc_robust_cpp(arma::mat x, arma::uvec init_z, arma::uvec groups, int D, int J, int K, int N, int em_iters, double mcd_alpha, int mcd_iters, unsigned int seed, bool track);
 RcppExport SEXP _SampleQC_fit_sampleqc_robust_cpp(SEXP xSEXP, SEXP init_zSEXP, SEXP groupsSEXP, SEXP DSEXP, SEXP JSEXP, SEXP KSEXP, SEXP NSEXP, SEXP em_itersSEXP, SEXP mcd_alphaSEXP, SEXP mcd_itersSEXP, SEXP seedSEXP, SEXP trackSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -46,18 +46,18 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type em_iters(em_itersSEXP);
     Rcpp::traits::input_parameter< double >::type mcd_alpha(mcd_alphaSEXP);
     Rcpp::traits::input_parameter< int >::type mcd_iters(mcd_itersSEXP);
-    Rcpp::traits::input_parameter< uint >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< bool >::type track(trackSEXP);
     rcpp_result_gen = Rcpp::wrap(fit_sampleqc_robust_cpp(x, init_z, groups, D, J, K, N, em_iters, mcd_alpha, mcd_iters, seed, track));
     return rcpp_result_gen;
 END_RCPP
 }
 // set_seed_cpp
-void set_seed_cpp(uint seed);
+void set_seed_cpp(unsigned int seed);
 RcppExport SEXP _SampleQC_set_seed_cpp(SEXP seedSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< uint >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type seed(seedSEXP);
     set_seed_cpp(seed);
     return R_NilValue;
 END_RCPP

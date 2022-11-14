@@ -7,7 +7,7 @@ using namespace Rcpp;
 // helpers
 
 // [[Rcpp::export]]
-void set_seed_cpp(uint seed) {
+void set_seed_cpp(unsigned int seed) {
   Rcpp::Environment base_env("package:base");
   Rcpp::Function set_seed_r = base_env["set.seed"];
   set_seed_r(seed);
